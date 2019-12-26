@@ -4,7 +4,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 from torch.nn import init
-from config import *
+from meta import *
 
 def l2norm(X):
     """L2-normalize columns of X
@@ -12,6 +12,25 @@ def l2norm(X):
     norm = torch.pow(X, 2).sum(dim=1, keepdim=True).sqrt()
     X = torch.div(X, norm)
     return X
+
+
+class Tripletnet(nn.Module):
+    def __init__(self, embeddingnet):
+        super(Tripletnet, self).__init__()
+        self.embeddingnet = embeddingnet
+
+    def forward(self, x, y, z, c):
+        """ x: Anchor image,
+            y: Distant (negative) image,
+            z: Close (positive) image,
+            c: Integer indicating according to which notion of similarity images are compared"""
+        embedded_x = self.embeddingnet(x, c)
+        embedded_y = self.embeddingnet(y, c)
+        embedded_z = self.embeddingnet(z, c)
+        sim_a = torch.sum(embedded_x * embedded_y, dim=1)
+        sim_b = torch.sum(embedded_x * embedded_z, dim=1)
+
+        return sim_a, sim_b
 
 
 class ASENet(nn.Module):

@@ -5,19 +5,16 @@ import pickle
 import torch.utils.data
 import torchvision.transforms as transforms
 import numpy as np
-from config import *
+from meta import *
 from PIL import Image
 from torch.autograd import Variable
 
 
 category = CONDITIONS
-
 category_num = CATEGORY_NUM
 
-triplet_num = NUM_TRIPLETS
 
-
-def make_dataset():
+def make_dataset(num_triplets):
 
     filename_csv = os.path.join(DATAPATH, DATASET, LABEL_FILE['train'])
     csvFile = open(filename_csv,'r')
@@ -41,7 +38,7 @@ def make_dataset():
             category_dict[item[1].replace('_labels','')].append([item[0], item[2].find('y')])
 
     #print('data generation')
-    for i in range(triplet_num):
+    for i in range(num_triplets):
         cate_r = random.randint(0, len(category)-1)
 
         cate_sub = random.randint(0, category_num[category[cate_r]]-1)
@@ -71,9 +68,10 @@ def default_image_loader(path):
 
 
 class TripletImageLoader(torch.utils.data.Dataset):
-    def __init__(self, root, base_path, transform=None,
+    def __init__(self, root, base_path, num_triplets, transform=None,
                  loader=default_image_loader):
-        self.triplets = make_dataset()
+        self.num_triplets = num_triplets
+        self.triplets = make_dataset(self.num_triplets)
         self.dataroot = os.path.join(root, base_path)
         self.loader = loader
         self.transform = transform

@@ -1,4 +1,4 @@
-from __future__ import print_function,division
+from __future__ import print_function, division
 import argparse
 import os
 import sys
@@ -17,12 +17,12 @@ from PIL import Image
 import matplotlib.cm as cm
 import numpy as np
 import resnet
-from model import ASENet
-from config import *
+from model import ASENet, Tripletnet
+from meta import *
 from metric import *
 
 # Training settings
-parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+parser = argparse.ArgumentParser(description='Attribute-Specific Embedding Network')
 parser.add_argument('--batch-size', type=int, default=16, metavar='N',
                     help='input batch size for training (default: 16)')
 parser.add_argument('--epochs', type=int, default=200, metavar='N',
@@ -30,161 +30,31 @@ parser.add_argument('--epochs', type=int, default=200, metavar='N',
 parser.add_argument('--start_epoch', type=int, default=1, metavar='N',
                     help='number of start epoch (default: 1)')
 parser.add_argument('--lr', type=float, default=0.0001, metavar='LR',
-                    help='learning rate (default: 5e-5)')
+                    help='learning rate (default: 1e-4)')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
-                    help='enables CUDA training')
+                    help='disable CUDA training')
 parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
-parser.add_argument('--resume', default='', type=str,
+parser.add_argument('--resume', default=None, type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--name', default='Conditional_Similarity_Network', type=str,
+parser.add_argument('--name', default='ASEN', type=str,
                     help='name of experiment')
-parser.add_argument('--embed_loss', type=float, default=5e-3, metavar='M',
-                    help='parameter for loss for embedding norm')
-parser.add_argument('--mask_loss', type=float, default=5e-4, metavar='M',
-                    help='parameter for loss for mask norm')
-parser.add_argument('--num_traintriplets', type=int, default=100000, metavar='N',
+parser.add_argument('--num_triplets', type=int, default=100000, metavar='N',
                     help='how many unique training triplets (default: 100000)')
 parser.add_argument('--dim_embed', type=int, default=1024, metavar='N',
-                    help='how many dimensions in embedding (default: 1024)')
+                    help='dimensions of embedding (default: 1024)')
 parser.add_argument('--test', dest='test', action='store_true',
-                    help='To only run inference on test set')
+                    help='inference on test set')
 parser.add_argument('--visdom', dest='visdom', action='store_true',
                     help='Use visdom to track and plot')
-parser.add_argument('--conditions', nargs='*', type=int,
-                    help='Set of similarity notions')
 parser.add_argument('--visdom_port', type=int, default=8098, metavar='N',
                     help='visdom port')
 parser.set_defaults(test=False)
-parser.set_defaults(learned=False)
-parser.set_defaults(prein=False)
 parser.set_defaults(visdom=False)
-
-best_mAP = 0
-
-
-def main():
-    global args, best_mAP
-    args = parser.parse_args()
-    args.cuda = not args.no_cuda and torch.cuda.is_available()
-    torch.manual_seed(args.seed)
-    if args.cuda:
-        torch.cuda.manual_seed(args.seed)
-    if args.visdom:
-        global plotter 
-        plotter = VisdomLinePlotter(env_name=args.name)
-    
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-
-    global conditions
-    if args.conditions is not None:
-        conditions = args.conditions
-    else:
-        conditions = [0,1,2,3,4,5,6,7]
-    
-    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
-
-    test_candidate_loader = torch.utils.data.DataLoader(
-        ImageLoader('../data', 'fashionAI', 'filenames_test.txt', 
-            'test', 'candidate',
-                        transform=transforms.Compose([
-                            transforms.Resize(224),
-                            transforms.CenterCrop(224),
-                            transforms.ToTensor(),
-                            normalize,
-                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-
-    test_query_loader = torch.utils.data.DataLoader(
-        ImageLoader('../data', 'fashionAI', 'filenames_test.txt', 
-            'test', 'query',
-                        transform=transforms.Compose([
-                            transforms.Resize(224),
-                            transforms.CenterCrop(224),
-                            transforms.ToTensor(),
-                            normalize,
-                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-
-    val_candidate_loader = torch.utils.data.DataLoader(
-        ImageLoader('../data', 'fashionAI', 'filenames_valid.txt', 
-            'valid', 'candidate',
-                        transform=transforms.Compose([
-                            transforms.Resize(224),
-                            transforms.CenterCrop(224),
-                            transforms.ToTensor(),
-                            normalize,
-                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-
-    val_query_loader = torch.utils.data.DataLoader(
-        ImageLoader('../data', 'fashionAI', 'filenames_valid.txt', 
-            'valid', 'query',
-                        transform=transforms.Compose([
-                            transforms.Resize(224),
-                            transforms.CenterCrop(224),
-                            transforms.ToTensor(),
-                            normalize,
-                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-
-
-    model = resnet.resnet50_feature()
-    global smn_model
-    smn_model = get_model('ASENet')(model, n_conditions=len(conditions), embedding_size=args.dim_embed)
-
-    tnet = get_model('Tripletnet')(smn_model)
-    if args.cuda:
-        tnet.cuda()
-
-    # optionally resume from a checkpoint
-    if args.resume:
-        if os.path.isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume)
-            args.start_epoch = checkpoint['epoch']
-            best_prec1 = checkpoint['best_prec1']
-            tnet.load_state_dict(checkpoint['state_dict'])
-            print("=> loaded checkpoint '{}' (epoch {} mAP {})"
-                    .format(args.resume, checkpoint['epoch']-1, best_prec1))
-        else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
-
-    cudnn.benchmark = True
-
-    criterion = torch.nn.MarginRankingLoss(margin = args.margin)
-    parameters = filter(lambda p: p.requires_grad, tnet.parameters())
-    optimizer = optim.Adam(parameters, lr=args.lr)
-
-    n_parameters = sum([p.data.nelement() for p in tnet.parameters()])
-    print('  + Number of params: {}'.format(n_parameters))
-
-    if args.test:
-        test_mAP = test(test_candidate_loader, test_query_loader, smn_model)
-        sys.exit()
-
-    for epoch in range(args.start_epoch, args.epochs + 1):
-        # update learning rate
-        adjust_learning_rate(optimizer, epoch)
-        # train for one epoch
-        train_loader = reload(normalize, kwargs)
-        train(train_loader, tnet, criterion, optimizer, epoch)
-        # evaluate on validation set
-        mAP = test(val_candidate_loader, val_query_loader, smn_model, epoch)
-
-        # remember best acc and save checkpoint
-        is_best = mAP > best_mAP
-        best_mAP = max(mAP, best_mAP)
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'state_dict': tnet.state_dict(),
-            'best_prec1': best_mAP,
-        }, is_best)
 
 
 def train(train_loader, tnet, criterion, optimizer, epoch):
@@ -198,9 +68,10 @@ def train(train_loader, tnet, criterion, optimizer, epoch):
             data1, data2, data3, c = data1.cuda(), data2.cuda(), data3.cuda(), c.cuda()
         data1, data2, data3, c = Variable(data1), Variable(data2), Variable(data3), Variable(c)
 
-    # compute output
+        # compute output
         sim_a, sim_b = tnet(data1, data2, data3, c)
-        # 1 means, dista should be larger than distb
+
+        # -1 means, sim_a should be smaller than sim_b
         target = torch.FloatTensor(sim_a.size()).fill_(-1)
         if args.cuda:
             target = target.cuda()
@@ -236,14 +107,14 @@ def train(train_loader, tnet, criterion, optimizer, epoch):
 def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
     mAPs = AverageMeter()
     mAP_cs = {}
-    for condition in conditions:
-        mAP_cs[condition] = AverageMeter()
+    for attribute in attributes:
+        mAP_cs[attribute] = AverageMeter()
 
     # switch to evaluation mode
     test_model.eval()
 
-    cand_set = [[] for _ in conditions]
-    c_gdtruth = [[] for _ in conditions]
+    cand_set = [[] for _ in attributes]
+    c_gdtruth = [[] for _ in attributes]
     for _, (img, c, gdtruth, _) in enumerate(test_candidate_loader):
         
         if args.cuda:
@@ -255,14 +126,13 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
         for i in range(masked_embedding.size(0)):
             cand_set[c[i].data.item()].append(masked_embedding[i].cpu().data.numpy())
             c_gdtruth[c[i].data.item()].append(gdtruth[i].cpu().data.item())
-    for condition in conditions:
-        cand_set[condition] = np.array(cand_set[condition])
-        c_gdtruth[condition] = np.array(c_gdtruth[condition])
-        #print(cand_set[condition].shape)
-        #print(c_gdtruth[condition].shape)
 
-    queries = [[] for _ in conditions]
-    q_gdtruth = [[] for _ in conditions]
+    for attribute in attributes:
+        cand_set[attribute] = np.array(cand_set[attribute])
+        c_gdtruth[attribute] = np.array(c_gdtruth[attribute])
+
+    queries = [[] for _ in attributes]
+    q_gdtruth = [[] for _ in attributes]
     for _, (img, c, gdtruth, _) in enumerate(test_query_loader):
         if args.cuda:
             img, c, gdtruth = img.cuda(), c.cuda(), gdtruth.cuda()
@@ -272,19 +142,19 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
         for i in range(masked_embedding.size(0)):
             queries[c[i].data.item()].append(masked_embedding[i].cpu().data.numpy())
             q_gdtruth[c[i].data.item()].append(gdtruth[i].cpu().data.item())
-    for condition in conditions:
-        queries[condition] = np.array(queries[condition])
-        q_gdtruth[condition] = np.array(q_gdtruth[condition])
+    for attribute in attributes:
+        queries[attribute] = np.array(queries[attribute])
+        q_gdtruth[attribute] = np.array(q_gdtruth[attribute])
     
-    for condition in conditions:
-        mAP = mean_average_precision(cand_set[condition], queries[condition], c_gdtruth[condition], q_gdtruth[condition])
-        mAPs.update(mAP, queries[condition].shape[0])
-        mAP_cs[condition].update(mAP)
+    for attribute in attributes:
+        mAP = mean_average_precision(cand_set[attribute], queries[attribute], c_gdtruth[attribute], q_gdtruth[attribute])
+        mAPs.update(mAP, queries[attribute].shape[0])
+        mAP_cs[attribute].update(mAP)
 
 
     print('Train Epoch: {}'.format(epoch))
-    for condition in conditions:
-        print('{} mAP: {:.4f}'.format(CONDITIONS[condition], 100. * mAP_cs[condition].val))
+    for attribute in attributes:
+        print('{} mAP: {:.4f}'.format(ATTRIBUTES[attribute], 100. * mAP_cs[attribute].val))
     print('MeanAP: {:.4f}\n'.format(100. * mAPs.avg))
 
     if args.visdom:
@@ -317,8 +187,11 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
 
 
 def reload(normalize,kwargs):
+    '''
+    regenerate a new set of triplets for each training epoch.
+    '''
     train_loader = torch.utils.data.DataLoader(
-        TripletImageLoader('../data', 'fashionAI/train',
+        TripletImageLoader('../data', 'fashionAI/train', args.num_triplets,
                         transform=transforms.Compose([
                             transforms.Resize(224),
                             transforms.CenterCrop(224),
@@ -374,7 +247,7 @@ class VisdomLinePlotter(object):
             heatmap_marked = np.uint8(imgs[i] * alpha + heatmap_marked * (1. - alpha))
             heatmap_marked = heatmap_marked.transpose([2,0,1])
 
-            win_name = 'img %d - %s'%(i,CONDITIONS[tasks[i]])
+            win_name = 'img %d - %s'%(i,ATTRIBUTES[tasks[i]])
             if win_name not in self.plots:
                 self.plots[win_name] = self.viz.image(
                     heatmap_marked,
@@ -426,13 +299,16 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
+
 def adjust_learning_rate(optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     lr = args.lr * ((1 - 0.015) ** epoch)
+
     if args.visdom:
         plotter.plot('lr', 'learning rate', epoch, lr)
+
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
 
 def accuracy(sim_a, sim_b):
     margin = 0
@@ -479,6 +355,127 @@ def mean_average_precision(cand_set, queries, c_gdtruth, q_gdtruth):
     mAP = ap_sum / simmat.shape[0]
 
     return mAP
+
+
+def main():
+    global args 
+
+    args = parser.parse_args()
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
+    torch.manual_seed(args.seed)
+
+    if args.cuda:
+        torch.cuda.manual_seed(args.seed)
+
+    if args.visdom:
+        global plotter
+        plotter = VisdomLinePlotter(env_name=args.name)
+    
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+
+    global attributes
+    attributes = [0,1,2,3,4,5,6,7]
+    
+    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+
+    test_candidate_loader = torch.utils.data.DataLoader(
+        ImageLoader('../data', 'fashionAI', 'filenames_test.txt', 
+            'test', 'candidate',
+                        transform=transforms.Compose([
+                            transforms.Resize(224),
+                            transforms.CenterCrop(224),
+                            transforms.ToTensor(),
+                            normalize,
+                    ])),
+        batch_size=args.batch_size, shuffle=True, **kwargs)
+
+    test_query_loader = torch.utils.data.DataLoader(
+        ImageLoader('../data', 'fashionAI', 'filenames_test.txt', 
+            'test', 'query',
+                        transform=transforms.Compose([
+                            transforms.Resize(224),
+                            transforms.CenterCrop(224),
+                            transforms.ToTensor(),
+                            normalize,
+                    ])),
+        batch_size=args.batch_size, shuffle=True, **kwargs)
+
+    val_candidate_loader = torch.utils.data.DataLoader(
+        ImageLoader('../data', 'fashionAI', 'filenames_valid.txt', 
+            'valid', 'candidate',
+                        transform=transforms.Compose([
+                            transforms.Resize(224),
+                            transforms.CenterCrop(224),
+                            transforms.ToTensor(),
+                            normalize,
+                    ])),
+        batch_size=args.batch_size, shuffle=True, **kwargs)
+
+    val_query_loader = torch.utils.data.DataLoader(
+        ImageLoader('../data', 'fashionAI', 'filenames_valid.txt', 
+            'valid', 'query',
+                        transform=transforms.Compose([
+                            transforms.Resize(224),
+                            transforms.CenterCrop(224),
+                            transforms.ToTensor(),
+                            normalize,
+                    ])),
+        batch_size=args.batch_size, shuffle=True, **kwargs)
+
+
+    model = resnet.resnet50_feature()
+    global smn_model
+    smn_model = ASENet(model, n_conditions=len(attributes), embedding_size=args.dim_embed)
+
+    tnet = Tripletnet(smn_model)
+    if args.cuda:
+        tnet.cuda()
+
+    # optionally resume from a checkpoint
+    if args.resume:
+        if os.path.isfile(args.resume):
+            print("=> loading checkpoint '{}'".format(args.resume))
+            checkpoint = torch.load(args.resume)
+            args.start_epoch = checkpoint['epoch']
+            best_mAP = checkpoint['best_map']
+            tnet.load_state_dict(checkpoint['state_dict'])
+            print("=> loaded checkpoint '{}' (epoch {} mAP {})"
+                    .format(args.resume, checkpoint['epoch'], best_mAP))
+        else:
+            print("=> no checkpoint found at '{}'".format(args.resume))
+
+    cudnn.benchmark = True
+
+    criterion = torch.nn.MarginRankingLoss(margin = args.margin)
+    parameters = filter(lambda p: p.requires_grad, tnet.parameters())
+    optimizer = optim.Adam(parameters, lr=args.lr)
+
+    n_parameters = sum([p.data.nelement() for p in tnet.parameters()])
+    print('  + Number of params: {}'.format(n_parameters))
+
+    if args.test:
+        test_mAP = test(test_candidate_loader, test_query_loader, smn_model)
+        sys.exit()
+
+    best_mAP = 0
+    for epoch in range(args.start_epoch, args.epochs + 1):
+        # update learning rate
+        adjust_learning_rate(optimizer, epoch)
+        # train for one epoch
+        train_loader = reload(normalize, kwargs)
+        train(train_loader, tnet, criterion, optimizer, epoch)
+        # evaluate on validation set
+        mAP = test(val_candidate_loader, val_query_loader, smn_model, epoch)
+
+        # remember best acc and save checkpoint
+        is_best = mAP > best_mAP
+        best_mAP = max(mAP, best_mAP)
+        save_checkpoint({
+            'epoch': epoch,
+            'state_dict': tnet.state_dict(),
+            'best_map': best_mAP,
+        }, is_best)
 
 
 if __name__ == '__main__':

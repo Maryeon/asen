@@ -1,6 +1,5 @@
 DATAPATH = '../data'
 DATASET = 'fashionAI'
-NUM_TRIPLETS = 100000
 
 LABEL_FILE = {
 	'train': 'train/Annotations/label.csv',
@@ -14,7 +13,7 @@ IMG_DIR = {
 	'test': 'test/'
 }
 
-CONDITIONS = [
+ATTRIBUTES = [
 	'skirt_length',
 	'sleeve_length',
 	'coat_length',
