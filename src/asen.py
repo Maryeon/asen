@@ -2,7 +2,13 @@ from __future__ import print_function, division
 import argparse
 import os
 import sys
+import cv2
 import shutil
+import numpy as np
+from PIL import Image
+from visdom import Visdom
+import matplotlib.cm as cm
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,18 +16,14 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from image_loader import TripletImageLoader, ImageLoader
-from visdom import Visdom
-import cv2
-from PIL import Image
-import matplotlib.cm as cm
-import numpy as np
+
 import resnet
-from model import ASENet, Tripletnet
 from meta import *
 from metric import *
+from model import ASENet, Tripletnet
+from image_loader import TripletImageLoader, ImageLoader
 
-# Training settings
+# Command Line Argument Parser
 parser = argparse.ArgumentParser(description='Attribute-Specific Embedding Network')
 parser.add_argument('--batch-size', type=int, default=16, metavar='N',
                     help='input batch size for training (default: 16)')
@@ -69,7 +71,7 @@ def train(train_loader, tnet, criterion, optimizer, epoch):
             data1, data2, data3, c = data1.cuda(), data2.cuda(), data3.cuda(), c.cuda()
         data1, data2, data3, c = Variable(data1), Variable(data2), Variable(data3), Variable(c)
 
-        # compute output
+        # compute similarity
         sim_a, sim_b = tnet(data1, data2, data3, c)
 
         # -1 means, sim_a should be smaller than sim_b
@@ -115,6 +117,7 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
     # switch to evaluation mode
     test_model.eval()
 
+    # extract candidate set features
     cand_set = [[] for _ in attributes]
     c_gdtruth = [[] for _ in attributes]
     for _, (img, c, gdtruth, _) in enumerate(test_candidate_loader):
@@ -123,7 +126,6 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
             img, c, gdtruth = img.cuda(), c.cuda(), gdtruth.cuda()
         img, c, gdtruth = Variable(img), Variable(c), Variable(gdtruth)
 
-        # compute output
         masked_embedding = test_model(img, c)
         for i in range(masked_embedding.size(0)):
             cand_set[c[i].data.item()].append(masked_embedding[i].cpu().data.numpy())
@@ -133,6 +135,7 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
         cand_set[attribute] = np.array(cand_set[attribute])
         c_gdtruth[attribute] = np.array(c_gdtruth[attribute])
 
+    # extract query set features
     queries = [[] for _ in attributes]
     q_gdtruth = [[] for _ in attributes]
     for _, (img, c, gdtruth, _) in enumerate(test_query_loader):
@@ -148,6 +151,7 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
         queries[attribute] = np.array(queries[attribute])
         q_gdtruth[attribute] = np.array(q_gdtruth[attribute])
     
+    # retrieval of each attribute
     for attribute in attributes:
         mAP = mean_average_precision(cand_set[attribute], queries[attribute], c_gdtruth[attribute], q_gdtruth[attribute])
         mAPs.update(mAP, queries[attribute].shape[0])
@@ -161,7 +165,9 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
 
     if args.visdom:
         samples = test_candidate_loader.dataset.sample()
+        # raw images
         imgs = []
+        # feed network
         x = []
         for sample in samples:
             img = cv2.imread(sample[0])
@@ -174,6 +180,7 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
             input_img = test_candidate_loader.dataset.transform(input_img)
             x.append(input_img.numpy())
 
+        # corresponding attributes
         tasks = [sample[1] for sample in samples]
 
         tasks = np.array(tasks)
@@ -190,9 +197,7 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
 
 
 def reload(normalize,kwargs):
-    '''
-    regenerate a new set of triplets for each training epoch.
-    '''
+    '''Regenerate a new set of triplets for each training epoch'''
     train_loader = torch.utils.data.DataLoader(
         TripletImageLoader('../data', 'fashionAI/train', args.num_triplets,
                         transform=transforms.Compose([
@@ -224,6 +229,7 @@ class VisdomLinePlotter(object):
         self.env = env_name
         self.plots = {}
 
+    # plot curve graph
     def plot(self, var_name, split_name, x, y):
         if var_name not in self.plots:
             self.plots[var_name] = self.viz.line(X=np.array([x,x]), Y=np.array([y,y]), env=self.env, opts=dict(
@@ -235,6 +241,7 @@ class VisdomLinePlotter(object):
         else:
             self.viz.line(X=np.array([x]), Y=np.array([y]), env=self.env, win=self.plots[var_name], name=split_name, update='append')
 
+    # plot attention map
     def plot_attention(self, imgs, heatmaps, tasks, alpha=0.5):
         for i in range(len(tasks)):
             heatmap = heatmaps[i]
@@ -311,7 +318,7 @@ def adjust_learning_rate(optimizer, epoch):
 
 
 def accuracy(sim_a, sim_b):
-
+    # triplet prediction acc
     margin = 0
     pred = (sim_b - sim_a - margin).cpu().data
     return float((pred > 0).sum())/float(sim_a.size()[0])
@@ -336,8 +343,8 @@ def mean_average_precision(cand_set, queries, c_gdtruth, q_gdtruth):
  
     scorer = APScorer(cand_set.shape[0])
 
+    # similarity matrix
     simmat = np.matmul(queries, cand_set.T)
-    #similarity matrix
 
     ap_sum = 0
     for q in range(simmat.shape[0]):

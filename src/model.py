@@ -22,7 +22,7 @@ class Tripletnet(nn.Module):
         """ x: Anchor image,
             y: Distant (negative) image,
             z: Close (positive) image,
-            c: Integer indicating according to which notion of similarity images are compared"""
+            c: Integer indicating according to which attribute images are compared"""
         embedded_x = self.embeddingnet(x, c)
         embedded_y = self.embeddingnet(y, c)
         embedded_z = self.embeddingnet(z, c)
@@ -92,7 +92,7 @@ class ASENet(nn.Module):
 
         return x
 
-    def spatial_heatmaps(self, x, task):
+    def get_heatmaps(self, x, task):
         feature, _ = self.backbonenet(x)
 
         img_embedding = self.conv1(feature)
