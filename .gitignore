@@ -12,4 +12,4 @@ dist
 build
 
 # My configurations:
-data/
+/data/
