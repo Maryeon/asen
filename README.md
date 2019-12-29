@@ -7,19 +7,6 @@ This repository is a [PyTorch]( https://pytorch.org/ ) implementation of the pap
 ![ASEN](images/framework.png)
 
 ## Data Split
-├─data
-│  └─fashionAI
-│      ├─test
-│      │  ├─Annotations
-│      │  └─Images
-│      ├─train
-│      │  ├─Annotations
-│      │  └─Images
-│      └─valid
-│          ├─Annotations
-│          └─Images
-├─images
-└─src
 
 Label files in ***data*** folder give our split of train/valid/test sets and candidate/query sets of validation and test set of [FashionAI dataset]( https://tianchi.aliyun.com/competition/entrance/231671/introduction ). Raw images are not included which should be put in the ***Images*** folders according to ***label.csv***. 
 
