@@ -1,6 +1,7 @@
 data/fashionAI/
+images/
+
 data/*.py
 data/*.csv
-images/
 src/make_triplet_DARN.py
 src/make_triplet_deepfashion.py
