@@ -1,33 +1,12 @@
 # Attribute-Specific Embedding Network (ASEN)
 
-This repository is a [PyTorch]( https://pytorch.org/ ) implementation of the paper Fine-Grained Fashion Similarity Learning by Attribute-Specific Embedding Network accepted by [AAAI 2020]( https://aaai.org/Conferences/AAAI-20/ ).
+This repository is a [PyTorch]( https://pytorch.org/ ) implementation of the paper ***Fine-Grained Fashion Similarity Learning by Attribute-Specific Embedding Network*** accepted by [AAAI 2020]( https://aaai.org/Conferences/AAAI-20/ ).
 
 ## Network
 
 ![ASEN](images/framework.png)
 
 ## Data Split
-
-|-- data
-    |   |-- candidate_test.txt
-    |   |-- candidate_valid.txt
-    |   |-- filenames_test.txt
-    |   |-- filenames_valid.txt
-    |   |-- query_test.txt
-    |   |-- query_valid.txt
-    |   |-- fashionAI
-    |       |-- test
-    |       |   |-- Annotations
-    |       |   |   |-- label.csv
-    |       |   |-- Images
-    |       |-- train
-    |       |   |-- Annotations
-    |       |   |   |-- label.csv
-    |       |   |-- Images
-    |       |-- valid
-    |           |-- Annotations
-    |           |   |-- label.csv
-    |           |-- Images
 
 Label files in ***data*** folder give our split of train/valid/test sets and candidate/query sets of validation and test set of [FashionAI dataset]( https://tianchi.aliyun.com/competition/entrance/231671/introduction ). Raw images are not included which should be put in the ***Images*** folders according to ***label.csv***. 
 
@@ -51,7 +30,11 @@ You can simply train the model by:
 python asen.py
 ```
 
-there are also optional arguments for initial learning rate, batch size and so on. Check them by `python asen.py --help ` .
+there are also optional arguments for initial learning rate, batch size and so on. Check them by 
+
+```sh
+python asen.py --help
+```
 
 ### Testing
 
