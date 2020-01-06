@@ -155,7 +155,7 @@ def resnet50_feature():
     #Constructs a ResNet-50 model.
 
     rnet50 = ResNet(Bottleneck, [3, 4, 6, 3])
-    rnet50.load_state_dict(torch.load('pretrained_models/resnet50-19c8e357.pth'))
+    rnet50.load_state_dict(torch.load('/media/star/sdb/nesa/pretrained_models/resnet50-19c8e357.pth'))
     
     return rnet50
 

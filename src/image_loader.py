@@ -1,28 +1,33 @@
 import os
 import csv
+import json
 import random
 import pickle
 import torch.utils.data
 import torchvision.transforms as transforms
 import numpy as np
-from meta import *
 from PIL import Image
 from torch.autograd import Variable
 
 
-category = ATTRIBUTES
-category_num = ATTRIBUTES_NUM
+def triplets_gen(root, base_path, meta, num_triplets):
+    category = meta['ATTRIBUTES']
+    category_num = meta['ATTRIBUTES_NUM']
 
 
-def make_dataset(num_triplets):
+    fnamelistfile = os.path.join(root, base_path, 'filenames_train.txt')
 
-    filename_csv = os.path.join(DATAPATH, DATASET, LABEL_FILE['train'])
-    csvFile = open(filename_csv,'r')
-    reader = csv.reader(csvFile)
-    data = []
-    for item in reader:
-        data.append(item)
-    csvFile.close()
+    fnamelist = []
+    with open(fnamelistfile, 'r') as f:
+        for fname in f:
+            fnamelist.append(fname.strip())
+
+    labelfile = os.path.join(root, base_path, 'label_train.txt')
+
+    labels = []
+    with open(labelfile, 'r') as f:
+        for label in f:
+            labels.append(label.strip().split(' '))
 
 
     category_dict = {}
@@ -31,9 +36,10 @@ def make_dataset(num_triplets):
     for c in category:
         category_dict[c] = []
 
-    for item in data:
-        if item[2].find('m') == -1:
-            category_dict[item[1].replace('_labels','')].append([item[0], item[2].find('y')])
+    for i in range(len(labels)):
+        label = labels[i]
+        fname = fnamelist[int(label[0])]
+        category_dict[ category[int(label[1])] ].append((fname,int(label[2])))
 
     for i in range(num_triplets):
         cate_r = random.randint(0, len(category)-1)
@@ -55,7 +61,10 @@ def make_dataset(num_triplets):
             if a != c and category_dict[category[cate_r]][c][1] == cate_sub:
                 break
             
-        triplets.append([category_dict[category[cate_r]][a],category_dict[category[cate_r]][b],category_dict[category[cate_r]][c],cate_r])
+        triplets.append([category_dict[category[cate_r]][a],
+                         category_dict[category[cate_r]][b],
+                         category_dict[category[cate_r]][c],
+                         cate_r])
 
     return triplets
 
@@ -64,12 +73,30 @@ def default_image_loader(path):
     return Image.open(path).convert('RGB')
 
 
+class MetaLoader(object):
+    def __init__(self, root, base_path):
+        self.data = json.load(open(os.path.join(root, base_path, 'meta.json')))
+
+    __instance = None
+    def __new__(cls, *args, **kwargs):
+        if not cls.__instance:
+            cls.__instance = object.__new__(cls)
+
+        return cls.__instance
+
+
 class TripletImageLoader(torch.utils.data.Dataset):
 
     def __init__(self, root, base_path, num_triplets, transform=None,
                  loader=default_image_loader):
-        self.triplets = make_dataset(num_triplets)
-        self.dataroot = os.path.join(root, base_path)
+        self.root = root
+        self.base_path = base_path
+        self.num_triplets = num_triplets
+
+        self.meta = MetaLoader(self.root, self.base_path)
+
+        self.triplets = triplets_gen(self.root, self.base_path, self.meta.data, self.num_triplets)
+
         self.loader = loader
         self.transform = transform
 
@@ -79,18 +106,18 @@ class TripletImageLoader(torch.utils.data.Dataset):
         path3 = self.triplets[index][2][0]
         c = self.triplets[index][3]
 
-        if os.path.exists(os.path.join(self.dataroot, path1)):
-            img1 = self.loader(os.path.join(self.dataroot, path1))
+        if os.path.exists(os.path.join(self.root, self.base_path, path1)):
+            img1 = self.loader(os.path.join(self.root, self.base_path, path1))
         else:
             return None
 
-        if os.path.exists(os.path.join(self.dataroot, path2)):
-            img2 = self.loader(os.path.join(self.dataroot, path2))
+        if os.path.exists(os.path.join(self.root, self.base_path, path2)):
+            img2 = self.loader(os.path.join(self.root, self.base_path, path2))
         else:
             return None
 
-        if os.path.exists(os.path.join(self.dataroot, path3)):
-            img3 = self.loader(os.path.join(self.dataroot, path3))
+        if os.path.exists(os.path.join(self.root, self.base_path, path3)):
+            img3 = self.loader(os.path.join(self.root, self.base_path, path3))
         else:
             return None
 
@@ -103,6 +130,9 @@ class TripletImageLoader(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.triplets)
+
+    def refresh(self):
+        self.triplets = triplets_gen(self.root, self.base_path, self.meta.data, self.num_triplets)
 
 
 class ImageLoader(torch.utils.data.Dataset):
@@ -117,11 +147,14 @@ class ImageLoader(torch.utils.data.Dataset):
         self.root = root
         self.base_path = base_path
         self.filenamelist = []
-        with open(os.path.join(self.root, filenames_filename)) as f:
+
+        self.meta = MetaLoader(self.root, self.base_path)
+
+        with open(os.path.join(self.root, self.base_path, filenames_filename)) as f:
             for line in f:
                 self.filenamelist.append(line.rstrip('\n'))
         samples = []
-        with open(os.path.join(self.root, cand_query+'_'+split+'.txt')) as f:
+        with open(os.path.join(self.root, self.base_path, cand_query+'_'+split+'.txt')) as f:
             for line in f:
                 samples.append((line.split()[0], int(line.split()[1]), int(line.split()[2])))   #picid condition groundtruth
         np.random.shuffle(samples)
@@ -145,7 +178,7 @@ class ImageLoader(torch.utils.data.Dataset):
     def sample(self):
         #randomly sample two images for each category
         samples = []
-        for attribute in range(len(category)):
+        for attribute in range(len(self.meta.data['ATTRIBUTES'])):
             sub = [sample for sample in self.samples if sample[1] == attribute]
             sample = random.sample(sub, 2)
             samples.append((os.path.join(self.root, self.base_path, self.filenamelist[int(sample[0][0])]), sample[0][1]))

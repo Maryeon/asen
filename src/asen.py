@@ -3,6 +3,7 @@ import argparse
 import os
 import sys
 import cv2
+import json
 import shutil
 import numpy as np
 from PIL import Image
@@ -18,10 +19,9 @@ from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 
 import resnet
-from meta import *
-from metric import *
+from metric import APScorer
 from model import ASENet, Tripletnet
-from image_loader import TripletImageLoader, ImageLoader
+from image_loader import TripletImageLoader, ImageLoader, MetaLoader
 
 # Command Line Argument Parser
 parser = argparse.ArgumentParser(description='Attribute-Specific Embedding Network')
@@ -53,8 +53,12 @@ parser.add_argument('--test', dest='test', action='store_true',
                     help='inference on test set')
 parser.add_argument('--visdom', dest='visdom', action='store_true',
                     help='Use visdom to track and plot')
-parser.add_argument('--visdom_port', type=int, default=8098, metavar='N',
+parser.add_argument('--visdom_port', type=int, default=4655, metavar='N',
                     help='visdom port')
+parser.add_argument('--data_path', default="../data", type=str,
+                    help='path to data directory')
+parser.add_argument('--dataset', default="fashionAI", type=str,
+                    help='name of dataset')
 parser.set_defaults(test=False)
 parser.set_defaults(visdom=False)
 
@@ -108,6 +112,7 @@ def train(train_loader, tnet, criterion, optimizer, epoch):
 
 
 def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
+    global meta
     
     mAPs = AverageMeter()
     mAP_cs = {}
@@ -160,7 +165,7 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
 
     print('Train Epoch: {}'.format(epoch))
     for attribute in attributes:
-        print('{} mAP: {:.4f}'.format(ATTRIBUTES[attribute], 100. * mAP_cs[attribute].val))
+        print('{} mAP: {:.4f}'.format(meta.data['ATTRIBUTES'][attribute], 100. * mAP_cs[attribute].val))
     print('MeanAP: {:.4f}\n'.format(100. * mAPs.avg))
 
     if args.visdom:
@@ -196,21 +201,6 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
     return mAPs.avg
 
 
-def reload(normalize,kwargs):
-    '''Regenerate a new set of triplets for each training epoch'''
-    train_loader = torch.utils.data.DataLoader(
-        TripletImageLoader('../data', 'fashionAI/train', args.num_triplets,
-                        transform=transforms.Compose([
-                            transforms.Resize(224),
-                            transforms.CenterCrop(224),
-                            transforms.RandomHorizontalFlip(),
-                            transforms.ToTensor(),
-                            normalize,
-                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-    return train_loader
-
-
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     """Saves checkpoint to disk"""
     directory = "../runs/%s/"%(args.name)
@@ -243,6 +233,8 @@ class VisdomLinePlotter(object):
 
     # plot attention map
     def plot_attention(self, imgs, heatmaps, tasks, alpha=0.5):
+        global meta
+
         for i in range(len(tasks)):
             heatmap = heatmaps[i]
             heatmap = cv2.resize(heatmap, (224,224), interpolation=cv2.INTER_CUBIC)
@@ -253,7 +245,7 @@ class VisdomLinePlotter(object):
             heatmap_marked = np.uint8(imgs[i] * alpha + heatmap_marked * (1. - alpha))
             heatmap_marked = heatmap_marked.transpose([2,0,1])
 
-            win_name = 'img %d - %s'%(i,ATTRIBUTES[tasks[i]])
+            win_name = 'img %d - %s'%(i,meta.data['ATTRIBUTES'][tasks[i]])
             if win_name not in self.plots:
                 self.plots[win_name] = self.viz.image(
                     heatmap_marked,
@@ -379,59 +371,9 @@ def main():
     if args.visdom:
         global plotter
         plotter = VisdomLinePlotter(env_name=args.name)
-    
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
 
     global attributes
     attributes = [0,1,2,3,4,5,6,7]
-    
-    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
-
-    test_candidate_loader = torch.utils.data.DataLoader(
-        ImageLoader('../data', 'fashionAI', 'filenames_test.txt', 
-            'test', 'candidate',
-                        transform=transforms.Compose([
-                            transforms.Resize(224),
-                            transforms.CenterCrop(224),
-                            transforms.ToTensor(),
-                            normalize,
-                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-
-    test_query_loader = torch.utils.data.DataLoader(
-        ImageLoader('../data', 'fashionAI', 'filenames_test.txt', 
-            'test', 'query',
-                        transform=transforms.Compose([
-                            transforms.Resize(224),
-                            transforms.CenterCrop(224),
-                            transforms.ToTensor(),
-                            normalize,
-                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-
-    val_candidate_loader = torch.utils.data.DataLoader(
-        ImageLoader('../data', 'fashionAI', 'filenames_valid.txt', 
-            'valid', 'candidate',
-                        transform=transforms.Compose([
-                            transforms.Resize(224),
-                            transforms.CenterCrop(224),
-                            transforms.ToTensor(),
-                            normalize,
-                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-
-    val_query_loader = torch.utils.data.DataLoader(
-        ImageLoader('../data', 'fashionAI', 'filenames_valid.txt', 
-            'valid', 'query',
-                        transform=transforms.Compose([
-                            transforms.Resize(224),
-                            transforms.CenterCrop(224),
-                            transforms.ToTensor(),
-                            normalize,
-                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-
 
     model = resnet.resnet50_feature()
     global smn_model
@@ -447,7 +389,7 @@ def main():
             print("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
-            best_mAP = checkpoint['best_map']
+            best_mAP = checkpoint['best_prec1']
             tnet.load_state_dict(checkpoint['state_dict'])
             print("=> loaded checkpoint '{}' (epoch {} mAP {})"
                     .format(args.resume, checkpoint['epoch'], best_mAP))
@@ -463,17 +405,79 @@ def main():
     n_parameters = sum([p.data.nelement() for p in tnet.parameters()])
     print('  + Number of params: {}'.format(n_parameters))
 
+    global meta
+    meta = MetaLoader(args.data_path, args.dataset)
+
+    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+
     if args.test:
+        test_candidate_loader = torch.utils.data.DataLoader(
+        ImageLoader(args.data_path, args.dataset, 'filenames_test.txt', 
+            'test', 'candidate',
+                        transform=transforms.Compose([
+                            transforms.Resize(224),
+                            transforms.CenterCrop(224),
+                            transforms.ToTensor(),
+                            normalize,
+                    ])),
+        batch_size=args.batch_size, shuffle=True, **kwargs)
+
+        test_query_loader = torch.utils.data.DataLoader(
+            ImageLoader(args.data_path, args.dataset, 'filenames_test.txt', 
+                'test', 'query',
+                            transform=transforms.Compose([
+                                transforms.Resize(224),
+                                transforms.CenterCrop(224),
+                                transforms.ToTensor(),
+                                normalize,
+                        ])),
+            batch_size=args.batch_size, shuffle=True, **kwargs)
+
         test_mAP = test(test_candidate_loader, test_query_loader, smn_model)
         sys.exit()
+
+    train_loader = torch.utils.data.DataLoader(
+        TripletImageLoader(args.data_path, args.dataset, args.num_triplets,
+                        transform=transforms.Compose([
+                            transforms.Resize(224),
+                            transforms.CenterCrop(224),
+                            transforms.RandomHorizontalFlip(),
+                            transforms.ToTensor(),
+                            normalize,
+                    ])),
+        batch_size=args.batch_size, shuffle=True, **kwargs)
+
+    val_candidate_loader = torch.utils.data.DataLoader(
+        ImageLoader(args.data_path, args.dataset, 'filenames_valid.txt', 
+            'valid', 'candidate',
+                        transform=transforms.Compose([
+                            transforms.Resize(224),
+                            transforms.CenterCrop(224),
+                            transforms.ToTensor(),
+                            normalize,
+                    ])),
+        batch_size=args.batch_size, shuffle=True, **kwargs)
+
+    val_query_loader = torch.utils.data.DataLoader(
+        ImageLoader(args.data_path, args.dataset, 'filenames_valid.txt', 
+            'valid', 'query',
+                        transform=transforms.Compose([
+                            transforms.Resize(224),
+                            transforms.CenterCrop(224),
+                            transforms.ToTensor(),
+                            normalize,
+                    ])),
+        batch_size=args.batch_size, shuffle=True, **kwargs)
 
     best_mAP = 0
     for epoch in range(args.start_epoch, args.epochs + 1):
         # update learning rate
         adjust_learning_rate(optimizer, epoch)
         # train for one epoch
-        train_loader = reload(normalize, kwargs)
         train(train_loader, tnet, criterion, optimizer, epoch)
+        train_loader.dataset.refresh()
         # evaluate on validation set
         mAP = test(val_candidate_loader, val_query_loader, smn_model, epoch)
 
@@ -483,7 +487,7 @@ def main():
         save_checkpoint({
             'epoch': epoch,
             'state_dict': tnet.state_dict(),
-            'best_map': best_mAP,
+            'best_perf': best_mAP,
         }, is_best)
 
 
