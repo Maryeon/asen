@@ -14,13 +14,19 @@ Label files in ***data*** folder give our split of train/valid/test sets and can
 
 ### Environments
 
-* Pytorch 1.1.0
+* PyTorch 1.1.0
 * CUDA 10.1.168
 * Python 3.6.2
 
-### Configure Path
+We use anaconda to create our experimental environment. You can rebuild it by the following commands.
 
-You should do nothing but link the location where you place the dataset and alter the value of variable DATASET in meta.py that means which dataset the model is training on.
+```sh
+conda create -n {your_env_name} python=3.6
+source activate {your_env_name}
+pip install -r requirements.txt
+...
+conda deactivate
+```
 
 ### Training
 
@@ -41,7 +47,7 @@ python asen.py --help
 As training terminates, two snapshots are saved for testing. One is the model that has the highest performance on validation set and the other is the one of the latest epoch. You can run any of the above two models and test on the test set by:
 
 ```sh
-python asen.py --test --resume ../runs/{experiment name}/xx.pth.tar
+python asen.py --test --resume ../runs/{your_exp_name}/xx.pth.tar
 ```
 
 ## Citing
