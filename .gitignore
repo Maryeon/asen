@@ -1,4 +1,4 @@
-data/fashionAI/*.txt
+data/fashionAI/
 data/*.py
 data/*.csv
 
