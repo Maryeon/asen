@@ -1,0 +1,9 @@
+http://47.107.142.126/file/fashionAI/candidate_test.txt
+http://47.107.142.126/file/fashionAI/candidate_valid.txt
+http://47.107.142.126/file/fashionAI/filenames_test.txt
+http://47.107.142.126/file/fashionAI/filenames_train.txt
+http://47.107.142.126/file/fashionAI/filenames_valid.txt
+http://47.107.142.126/file/fashionAI/label_train.txt
+http://47.107.142.126/file/fashionAI/meta.json
+http://47.107.142.126/file/fashionAI/query_test.txt
+http://47.107.142.126/file/fashionAI/query_valid.txt
