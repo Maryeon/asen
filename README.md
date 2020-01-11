@@ -18,7 +18,7 @@ We use anaconda to create our experimental environment. You can rebuild it by th
 
 ```sh
 conda create -n {your_env_name} python=3.6
-source activate {your_env_name}
+conda activate {your_env_name}
 pip install -r requirements.txt
 ...
 conda deactivate
@@ -52,7 +52,7 @@ coming soon
 We supply our dataset split and some descriptions of the datasets with a bunch of meta files. Download them by the following script.
 
 ```sh
-wget -c -P data/ -i urls.txt
+wget -c -P data/fashionAI/ -i urls.txt
 ```
 
 ## Getting Started
