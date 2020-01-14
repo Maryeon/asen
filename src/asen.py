@@ -57,7 +57,7 @@ parser.add_argument('--visdom_port', type=int, default=4655, metavar='N',
                     help='visdom port')
 parser.add_argument('--data_path', default="../data", type=str,
                     help='path to data directory')
-parser.add_argument('--dataset', default="fashionAI", type=str,
+parser.add_argument('--dataset', default="FashionAI", type=str,
                     help='name of dataset')
 parser.set_defaults(test=False)
 parser.set_defaults(visdom=False)
