@@ -43,7 +43,7 @@ class TripletGenerator(object):
 
     def get_triplet(self, num_triplets):     
         triplets = []
-        
+
         for i in range(num_triplets):
             cate_r = random.randint(0, len(self.category)-1)
 
@@ -78,8 +78,8 @@ class FashionAI_Generator(TripletGenerator):
 
 
 class MetaLoader(object):
-    def __init__(self, root, base_path):
-        self.data = json.load(open(os.path.join(root, base_path, 'meta.json')))
+    def __init__(self, root, dataset):
+        self.data = json.load(open(os.path.join(root, 'meta.json')))[dataset]
 
     __instance = None
     def __new__(cls, *args, **kwargs):
@@ -148,7 +148,7 @@ class ImageLoader(torch.utils.data.Dataset):
     
     def __init__(self, root, base_path, filenames_filename, split, cand_query, transform=None, loader=default_image_loader):
         ''' root:                   rootpath to data
-            base_path:              dataset, e.g., fashionAI
+            base_path:              indicate dataset, e.g., fashionAI
             filenames_filename:     file of image names
             split:                  valid or test
             cand_query:             candidate or query
