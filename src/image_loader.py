@@ -10,67 +10,71 @@ from PIL import Image
 from torch.autograd import Variable
 
 
-def triplets_gen(root, base_path, meta, num_triplets):
-    category = meta['ATTRIBUTES']
-    category_num = meta['ATTRIBUTES_NUM']
+class TripletGenerator(object):
+    def __init__(self, root, base_path, meta):
+        
+        fnamelistfile = os.path.join(root, base_path, 'filenames_train.txt')
+
+        self.fnamelist = []
+        with open(fnamelistfile, 'r') as f:
+            for fname in f:
+                self.fnamelist.append(fname.strip())
+
+        labelfile = os.path.join(root, base_path, 'label_train.txt')
+
+        self.labels = []
+        with open(labelfile, 'r') as f:
+            for label in f:
+                self.labels.append([int(i) for i in label.strip().split(' ')])
+
+        self.category = meta['ATTRIBUTES']
+        self.category_num = meta['ATTRIBUTES_NUM']
+
+        self.category_dict = {}
+        for c in self.category:
+            self.category_dict[c] = []
+
+        for i in range(len(self.labels)):
+            label = self.labels[i]
+            fname = self.fnamelist[label[0]]
+
+            for j in range(len(label)//2):
+                self.category_dict[ self.category[label[j*2+1]] ].append([fname, label[j*2+2]])
+
+    def get_triplet(self, num_triplets):     
+        triplets = []
+        
+        for i in range(num_triplets):
+            cate_r = random.randint(0, len(self.category)-1)
+
+            cate_sub = random.randint(0, self.category_num[self.category[cate_r]]-1)
+
+            while True:
+                a = random.randint(0, len(self.category_dict[self.category[cate_r]])-1)
+                if self.category_dict[self.category[cate_r]][a][1] == cate_sub:
+                    break
+
+            while True:
+                b = random.randint(0, len(self.category_dict[self.category[cate_r]])-1)
+                if  self.category_dict[self.category[cate_r]][b][1] != cate_sub:
+                    break
+                
+            while True:
+                c = random.randint(0, len(self.category_dict[self.category[cate_r]])-1)
+                if a != c and self.category_dict[self.category[cate_r]][c][1] == cate_sub:
+                    break
+                
+            triplets.append([self.category_dict[self.category[cate_r]][a],
+                             self.category_dict[self.category[cate_r]][b],
+                             self.category_dict[self.category[cate_r]][c],
+                             cate_r])
+
+        return triplets
 
 
-    fnamelistfile = os.path.join(root, base_path, 'filenames_train.txt')
-
-    fnamelist = []
-    with open(fnamelistfile, 'r') as f:
-        for fname in f:
-            fnamelist.append(fname.strip())
-
-    labelfile = os.path.join(root, base_path, 'label_train.txt')
-
-    labels = []
-    with open(labelfile, 'r') as f:
-        for label in f:
-            labels.append(label.strip().split(' '))
-
-
-    category_dict = {}
-
-    triplets = []
-    for c in category:
-        category_dict[c] = []
-
-    for i in range(len(labels)):
-        label = labels[i]
-        fname = fnamelist[int(label[0])]
-        category_dict[ category[int(label[1])] ].append((fname,int(label[2])))
-
-    for i in range(num_triplets):
-        cate_r = random.randint(0, len(category)-1)
-
-        cate_sub = random.randint(0, category_num[category[cate_r]]-1)
-
-        while True:
-            a = random.randint(0, len(category_dict[category[cate_r]])-1)
-            if category_dict[category[cate_r]][a][1] == cate_sub:
-                break
-
-        while True:
-            b = random.randint(0, len(category_dict[category[cate_r]])-1)
-            if  category_dict[category[cate_r]][b][1] != cate_sub:
-                break
-            
-        while True:
-            c = random.randint(0, len(category_dict[category[cate_r]])-1)
-            if a != c and category_dict[category[cate_r]][c][1] == cate_sub:
-                break
-            
-        triplets.append([category_dict[category[cate_r]][a],
-                         category_dict[category[cate_r]][b],
-                         category_dict[category[cate_r]][c],
-                         cate_r])
-
-    return triplets
-
-
-def default_image_loader(path):
-    return Image.open(path).convert('RGB')
+class FashionAI_Generator(TripletGenerator):
+    def __init__(self, root, base_path, meta):
+        super(FashionAI_Generator, self).__init__()
 
 
 class MetaLoader(object):
@@ -85,6 +89,10 @@ class MetaLoader(object):
         return cls.__instance
 
 
+def default_image_loader(path):
+    return Image.open(path).convert('RGB')
+
+
 class TripletImageLoader(torch.utils.data.Dataset):
 
     def __init__(self, root, base_path, num_triplets, transform=None,
@@ -95,7 +103,8 @@ class TripletImageLoader(torch.utils.data.Dataset):
 
         self.meta = MetaLoader(self.root, self.base_path)
 
-        self.triplets = triplets_gen(self.root, self.base_path, self.meta.data, self.num_triplets)
+        self.triplet_generator = TripletGenerator(self.root, self.base_path, self.meta.data)
+        self.triplets = self.triplet_generator.get_triplet(self.num_triplets)
 
         self.loader = loader
         self.transform = transform
@@ -132,7 +141,7 @@ class TripletImageLoader(torch.utils.data.Dataset):
         return len(self.triplets)
 
     def refresh(self):
-        self.triplets = triplets_gen(self.root, self.base_path, self.meta.data, self.num_triplets)
+        self.triplets = self.triplet_generator.get_triplet(self.num_triplets)
 
 
 class ImageLoader(torch.utils.data.Dataset):
