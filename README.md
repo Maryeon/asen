@@ -31,6 +31,7 @@ conda deactivate
 We supply our dataset split and some descriptions of the datasets with a bunch of meta files. Download them by the following script.
 
 ```sh
+mkdir {your_project_path}/data/
 wget -c -P data/ http://www.maryeon.com/file/release/meta_data.tar.gz
 cd data/
 tar -zxvf meta_data.tar.gz
@@ -38,11 +39,10 @@ tar -zxvf meta_data.tar.gz
 
 #### FashionAI Dataset
 
-As the full FashionAI has not been publicly released, we utilize its early version for the [FashionAI Global Challenge 2018](https://tianchi.aliyun.com/markets/tianchi/FashionAI). You can first sign in and download the data. Once done, you should uncompress them into the right directory:
+As the full FashionAI has not been publicly released, we utilize its early version for the [FashionAI Global Challenge 2018](https://tianchi.aliyun.com/markets/tianchi/FashionAI). You can first sign in and download the data. Once done, you should uncompress them into the `FashionAI` directory:
 
 ```sh
-mkdir {your_project_path}/data/fashionAI
-unzip fashionAI_attributes_train1.zip fashionAI_attributes_train2.zip -d {your_project_path}/data/fashionAI
+unzip fashionAI_attributes_train1.zip fashionAI_attributes_train2.zip -d {your_project_path}/data/FashionAI
 ```
 
 #### DARN Dataset
