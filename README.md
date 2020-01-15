@@ -59,13 +59,13 @@ coming soon
 
 ## Getting Started
 
-All data prepared, you can simply train the model
+All data prepared, you can simply train the model on FashionAI dataset(default)
 
 ```sh
-python asen.py
+python asen.py --dataset FashionAI
 ```
 
-there are also optional arguments for initial learning rate, batch size and so on. Check them by 
+there are also optional arguments for dataset, initial learning rate, batch size and so on. Check them by 
 
 ```sh
 python asen.py --help
@@ -76,7 +76,7 @@ python asen.py --help
 As training terminates, two snapshots are saved for testing. One is the model that has the highest performance on validation set and the other is the one of the latest epoch. You can load any of them and test on the test set.
 
 ```sh
-python asen.py --test --resume ../runs/{your_exp_name}/xx.pth.tar
+python asen.py --test [--dataset] --resume ../runs/{your_exp_name}/xx.pth.tar
 ```
 
 ## Citing
