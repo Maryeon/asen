@@ -26,6 +26,16 @@ conda deactivate
 
 ### Download Data
 
+#### Dataset Split
+
+We supply our dataset split and some descriptions of the datasets with a bunch of meta files. Download them by the following script.
+
+```sh
+wget -c -P data/ http://www.maryeon.com/file/release/meta_data.tar.gz
+cd data/
+tar -zxvf meta_data.tar.gz
+```
+
 #### FashionAI Dataset
 
 As the full FashionAI has not been publicly released, we utilize its early version for the [FashionAI Global Challenge 2018](https://tianchi.aliyun.com/markets/tianchi/FashionAI). You can first sign in and download the data. Once done, you should uncompress them into the right directory:
@@ -46,14 +56,6 @@ coming soon
 #### Zappos50k Dataset
 
 coming soon
-
-#### Meta Data
-
-We supply our dataset split and some descriptions of the datasets with a bunch of meta files. Download them by the following script.
-
-```sh
-wget -c -P data/fashionAI/ -i urls.txt
-```
 
 ## Getting Started
 

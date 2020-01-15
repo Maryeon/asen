@@ -1,9 +1,0 @@
-http://www.maryeon.com/file/fashionAI/candidate_test.txt
-http://www.maryeon.com/file/fashionAI/candidate_valid.txt
-http://www.maryeon.com/file/fashionAI/filenames_test.txt
-http://www.maryeon.com/file/fashionAI/filenames_train.txt
-http://www.maryeon.com/file/fashionAI/filenames_valid.txt
-http://www.maryeon.com/file/fashionAI/label_train.txt
-http://www.maryeon.com/file/fashionAI/meta.json
-http://www.maryeon.com/file/fashionAI/query_test.txt
-http://www.maryeon.com/file/fashionAI/query_valid.txt
