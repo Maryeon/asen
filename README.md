@@ -31,7 +31,6 @@ conda deactivate
 We supply our dataset split and some descriptions of the datasets with a bunch of meta files. Download them by the following script.
 
 ```sh
-mkdir {your_project_path}/data/
 wget -c -P data/ http://www.maryeon.com/file/release/meta_data.tar.gz
 cd data/
 tar -zxvf meta_data.tar.gz
