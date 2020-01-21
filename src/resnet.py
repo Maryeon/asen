@@ -3,8 +3,7 @@ import math
 import torch.utils.model_zoo as model_zoo
 import torch
 
-__all__ = ['resnet34_feature', 'resnet50_feature', 'resnet101_feature',
-           'resnet152_feature',]
+__all__ = ['resnet50_feature']
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -142,41 +141,10 @@ class ResNet(nn.Module):
         return layer3, layer4
 
 
-def resnet34_feature(pretrained=False, num_classes=1000, **kwargs):
-    #Constructs a ResNet-34 model.
-
-    rnet34 = ResNet(BasicBlock, [3, 4, 6, 3])
-    rnet34.load_state_dict(torch.load('pretrained_model/resnet34-333f7ec4.pth'))
-
-    return rnet34
-
-
 def resnet50_feature():
     #Constructs a ResNet-50 model.
 
     rnet50 = ResNet(Bottleneck, [3, 4, 6, 3])
-    rnet50.load_state_dict(torch.load('/media/star/sdb/nesa/pretrained_models/resnet50-19c8e357.pth'))
+    rnet50.load_state_dict(torch.load('{path you place pretrained ResNet-50 model}/resnet50-19c8e357.pth'))
     
     return rnet50
-
-
-def resnet101_feature():
-    #Constructs a ResNet-101 model.
-
-    rnet101 = ResNet(Bottleneck, [3, 4, 23, 3])
-
-    rnet101.load_state_dict(torch.load('pretrained_model/resnet101-5d3b4d8f.pth'))
-
-    return rnet101
-
-
-def resnet152_feature(pretrained=False, num_classes=1000, **kwargs):
-    """Constructs a ResNet-152 model.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
-    model = ResNet(Bottleneck, [3, 8, 36, 3], num_classes, **kwargs)
-    if pretrained:
-        pass
-        #model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
-    return model
