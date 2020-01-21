@@ -55,7 +55,7 @@ coming soon
 
 #### Zappos50k Dataset
 
-coming soon
+We utilize identical split provided by [Conditional SImilarity Network](https://arxiv.org/abs/1603.07810). To download the Zappos50k dataset and their triplet list, please refer to [their repository](https://github.com/andreasveit/conditional-similarity-networks).
 
 ## Getting Started
 
@@ -82,3 +82,4 @@ python asen.py --test [--dataset] --resume ../runs/{your_exp_name}/xx.pth.tar
 ## Citing
 
 If it's of any help to your research, consider citing our work:
+
