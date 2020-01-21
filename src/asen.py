@@ -5,6 +5,7 @@ import sys
 import cv2
 import json
 import shutil
+import logging
 import numpy as np
 from PIL import Image
 from visdom import Visdom
@@ -63,6 +64,10 @@ parser.set_defaults(test=False)
 parser.set_defaults(visdom=False)
 
 
+logging.basicConfig(level = logging.INFO, format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+
 def train(train_loader, tnet, criterion, optimizer, epoch):
 
     losses = AverageMeter()
@@ -98,7 +103,7 @@ def train(train_loader, tnet, criterion, optimizer, epoch):
         optimizer.step()
 
         if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{}]\t'
+            logger.info('Train Epoch: {} [{}/{}]\t'
                   'Loss: {:.4f} ({:.4f}) \t'
                   'Acc: {:.2f}% ({:.2f}%)'.format(
                 epoch, batch_idx * len(data1), len(train_loader.dataset),
@@ -163,10 +168,10 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
         mAP_cs[attribute].update(mAP)
 
 
-    print('Train Epoch: {}'.format(epoch))
+    logger.info('Train Epoch: {}'.format(epoch))
     for attribute in attributes:
-        print('{} mAP: {:.4f}'.format(meta.data['ATTRIBUTES'][attribute], 100. * mAP_cs[attribute].val))
-    print('MeanAP: {:.4f}\n'.format(100. * mAPs.avg))
+        logger.info('{} mAP: {:.4f}'.format(meta.data['ATTRIBUTES'][attribute], 100. * mAP_cs[attribute].val))
+    logger.info('MeanAP: {:.4f}\n'.format(100. * mAPs.avg))
 
     if args.visdom:
         samples = test_candidate_loader.dataset.sample()
@@ -389,15 +394,15 @@ def main():
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
+            logger.info("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
-            best_mAP = checkpoint['best_perf']
+            best_mAP = checkpoint['best_prec']
             tnet.load_state_dict(checkpoint['state_dict'])
-            print("=> loaded checkpoint '{}' (epoch {} mAP {})"
+            logger.info("=> loaded checkpoint '{}' (epoch {} mAP {})"
                     .format(args.resume, checkpoint['epoch'], best_mAP))
         else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
+            logger.info("=> no checkpoint found at '{}'".format(args.resume))
 
     cudnn.benchmark = True
 
@@ -406,7 +411,7 @@ def main():
     optimizer = optim.Adam(parameters, lr=args.lr)
 
     n_parameters = sum([p.data.nelement() for p in tnet.parameters()])
-    print('  + Number of params: {}'.format(n_parameters))
+    logger.info('  + Number of params: {}'.format(n_parameters))
 
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -471,7 +476,10 @@ def main():
                     ])),
         batch_size=args.batch_size, shuffle=True, **kwargs)
 
+    logger.info("Begin training on {} dataset.".format(args.dataset))
+
     best_mAP = 0
+    no_impr_counter = 0
     for epoch in range(args.start_epoch, args.epochs + 1):
         # update learning rate
         adjust_learning_rate(optimizer, epoch)
@@ -487,8 +495,16 @@ def main():
         save_checkpoint({
             'epoch': epoch,
             'state_dict': tnet.state_dict(),
-            'best_perf': best_mAP,
+            'best_prec': best_mAP,
         }, is_best)
+
+        if not is_best:
+            no_impr_counter += 1
+            if no_impr_counter >= 5:
+                logger.info("Early stop happened.\n")
+                break
+        else:
+            no_impr_counter = 0
 
 
 if __name__ == '__main__':
