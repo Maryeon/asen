@@ -141,10 +141,19 @@ class ResNet(nn.Module):
         return layer3, layer4
 
 
-def resnet50_feature():
+def resnet50_feature(pretrained=True):
     #Constructs a ResNet-50 model.
 
     rnet50 = ResNet(Bottleneck, [3, 4, 6, 3])
-    rnet50.load_state_dict(torch.load('{path you place pretrained ResNet-50 model}/resnet50-19c8e357.pth'))
+
+    if pretrained:
+        state = rnet50.state_dict()
+        loaded_state_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet50-19c8e357.pth')
+        for k in loaded_state_dict:
+            if k in state:
+                state[k] = loaded_state_dict[k]
+        rnet50.load_state_dict(state)
+
+    #rnet50.load_state_dict(torch.load('https://download.pytorch.org/models/resnet50-19c8e357.pth'))
     
     return rnet50
