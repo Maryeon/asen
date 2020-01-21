@@ -372,8 +372,11 @@ def main():
         global plotter
         plotter = VisdomLinePlotter(env_name=args.name)
 
+    global meta
+    meta = MetaLoader(args.data_path, args.dataset)
+
     global attributes
-    attributes = [0,1,2,3,4,5,6,7]
+    attributes = [i for i in range(len(meta.data['ATTRIBUTES']))]
 
     model = resnet.resnet50_feature()
     global smn_model
@@ -404,9 +407,6 @@ def main():
 
     n_parameters = sum([p.data.nelement() for p in tnet.parameters()])
     print('  + Number of params: {}'.format(n_parameters))
-
-    global meta
-    meta = MetaLoader(args.data_path, args.dataset)
 
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
