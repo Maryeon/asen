@@ -46,7 +46,7 @@ unzip fashionAI_attributes_train1.zip fashionAI_attributes_train2.zip -d {your_p
 
 #### DARN Dataset
 
-coming soon
+As some images’ URLs have been broken, only 214,619 images are obtained for our experiments. We provide with a series of [URLs](http://www.maryeon.com/file/release/darn_url.txt) for the images.
 
 #### DeepFashion Dataset
 
