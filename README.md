@@ -50,7 +50,7 @@ As some images’ URLs have been broken, only 214,619 images are obtained for ou
 
 #### DeepFashion Dataset
 
-coming soon
+[DeepFashion](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Liu_DeepFashion_Powering_Robust_CVPR_2016_paper.pdf) is a large dataset which consists of four benchmarks for various tasks in the field of clothing including [category and attribute prediction](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion.html) which we use for our experiments, in-shop clothes retrieval, fashion landmark detection and consumer-to-shop clothes retrieval.
 
 #### Zappos50k Dataset
 
