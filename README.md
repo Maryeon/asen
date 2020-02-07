@@ -4,7 +4,7 @@ This repository is a [PyTorch]( https://pytorch.org/ ) implementation of **Attri
 
 ## Network
 
-![ASEN](images/framework.png)
+![ASEN](framework.png)
 
 ## Requirements
 

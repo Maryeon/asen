@@ -56,7 +56,7 @@ parser.add_argument('--visdom', dest='visdom', action='store_true',
                     help='Use visdom to track and plot')
 parser.add_argument('--visdom_port', type=int, default=4655, metavar='N',
                     help='visdom port')
-parser.add_argument('--data_path', default="../data", type=str,
+parser.add_argument('--data_path', default="data", type=str,
                     help='path to data directory')
 parser.add_argument('--dataset', default="FashionAI", type=str,
                     help='name of dataset')
@@ -208,13 +208,13 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     """Saves checkpoint to disk"""
-    directory = "../runs/%s/"%(args.name)
+    directory = "runs/%s/"%(args.name)
     if not os.path.exists(directory):
         os.makedirs(directory)
     filename = directory + filename
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, '../runs/%s/'%(args.name) + 'model_best.pth.tar')
+        shutil.copyfile(filename, 'runs/%s/'%(args.name) + 'model_best.pth.tar')
 
 
 class VisdomLinePlotter(object):
@@ -479,7 +479,6 @@ def main():
     logger.info("Begin training on {} dataset.".format(args.dataset))
 
     best_mAP = 0
-    no_impr_counter = 0
     for epoch in range(args.start_epoch, args.epochs + 1):
         # update learning rate
         adjust_learning_rate(optimizer, epoch)
@@ -497,14 +496,6 @@ def main():
             'state_dict': tnet.state_dict(),
             'best_prec': best_mAP,
         }, is_best)
-
-        if not is_best:
-            no_impr_counter += 1
-            if no_impr_counter >= 5:
-                logger.info("Early stop happened.\n")
-                break
-        else:
-            no_impr_counter = 0
 
 
 if __name__ == '__main__':
