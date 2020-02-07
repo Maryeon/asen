@@ -1,4 +1,4 @@
-# Modifying
+# Attribute-Specific Embedding Network
 
 This repository is a [PyTorch]( https://pytorch.org/ ) implementation of **Attribute-Specific Embedding Network (ASEN)** proposed in our paper *Fine-Grained Fashion Similarity Learning by Attribute-Specific Embedding Network* accepted by [AAAI 2020]( https://aaai.org/Conferences/AAAI-20/ ).
 
