@@ -75,7 +75,7 @@ python asen.py --help
 As training terminates, two snapshots are saved for testing. One is the model that has the highest performance on validation set and the other is the one of the latest epoch. You can load any of them and test on the test set.
 
 ```sh
-python asen.py --test [--dataset] --resume ../runs/{your_exp_name}/xx.pth.tar
+python asen.py --test [--dataset] --resume runs/{your_exp_name}/xx.pth.tar
 ```
 
 ## Citing
