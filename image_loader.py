@@ -80,7 +80,10 @@ class FashionAI_Generator(TripletGenerator):
 class DARN_Generator(TripletGenerator):
     def __init__(root, base_path, meta):
         super(DARN_Generator, self).__init__()
-
+        
+class DeepFashion_Generator(TripletGenerator):
+    def __init__(root, base_path, meta):
+        super(DeepFashion_Generator, self).__init__()
 
 class MetaLoader(object):
     def __init__(self, root, dataset):
