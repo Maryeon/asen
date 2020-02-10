@@ -3,6 +3,7 @@ import os
 import sys
 import cv2
 import json
+import time
 import shutil
 import logging
 import numpy as np
@@ -478,6 +479,7 @@ def main():
     logger.info("Begin training on {} dataset.".format(args.dataset))
 
     best_mAP = 0
+    start = time.time()
     for epoch in range(args.start_epoch, args.epochs + 1):
         # update learning rate
         adjust_learning_rate(optimizer, epoch)
@@ -495,6 +497,16 @@ def main():
             'state_dict': tnet.state_dict(),
             'best_prec': best_mAP,
         }, is_best)
+
+        for param in optimizer.param_groups:
+            logging.info('lr:{}'.format(param['lr']))
+            break
+
+    end = time.time()
+    duration = int(end - start)
+    minutes = (duration // 60) % 60
+    hours = duration // 3600
+    logger.info('training time {}h {}min'.format(hours, minutes))
 
 
 if __name__ == '__main__':
