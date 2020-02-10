@@ -1,6 +1,6 @@
 # Attribute-Specific Embedding Network
 
-This repository is a [PyTorch]( https://pytorch.org/ ) implementation of **Attribute-Specific Embedding Network (ASEN)** proposed in our paper *Fine-Grained Fashion Similarity Learning by Attribute-Specific Embedding Network* accepted by [AAAI 2020]( https://aaai.org/Conferences/AAAI-20/ ).
+This repository is a [PyTorch]( https://pytorch.org/ ) implementation of **Attribute-Specific Embedding Network (ASEN)** proposed in our paper [*Fine-Grained Fashion Similarity Learning by Attribute-Specific Embedding Network*](https://arxiv.org/abs/2002.02814) accepted by AAAI 2020.
 
 ## Network
 
@@ -75,10 +75,18 @@ python asen.py --help
 As training terminates, two snapshots are saved for testing. One is the model that has the highest performance on validation set and the other is the one of the latest epoch. You can load any of them and test on the test set.
 
 ```sh
-python asen.py --test [--dataset] --resume runs/{your_exp_name}/xx.pth.tar
+python asen.py --test [--dataset xx] --resume runs/{your_exp_name}/xx.pth.tar
 ```
 
 ## Citing
 
 If it's of any help to your research, consider citing our work:
 
+```latex
+@inproceedings{ma2020fine,
+  title={Fine-Grained Fashion Similarity Learning by Attribute-Specific Embedding Network},
+  author={Ma, Zhe and Dong, Jianfeng and Long, Zhongzi and Zhang, Yao and He, Yuan and Xue, Hui and Ji, Shouling},
+  booktitle={Thirty-fourth AAAI Conference on Artificial Intelligence},
+  year = {2020}
+}
+```
