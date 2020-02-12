@@ -72,19 +72,6 @@ class TripletGenerator(object):
         return triplets
 
 
-class FashionAI_Generator(TripletGenerator):
-    def __init__(self, root, base_path, meta):
-        super(FashionAI_Generator, self).__init__()
-
-
-class DARN_Generator(TripletGenerator):
-    def __init__(root, base_path, meta):
-        super(DARN_Generator, self).__init__()
-        
-class DeepFashion_Generator(TripletGenerator):
-    def __init__(root, base_path, meta):
-        super(DeepFashion_Generator, self).__init__()
-
 class MetaLoader(object):
     def __init__(self, root, dataset):
         self.data = json.load(open(os.path.join(root, 'meta.json')))[dataset]
