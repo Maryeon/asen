@@ -70,6 +70,12 @@ there are also optional arguments for dataset, initial learning rate, batch size
 python asen.py --help
 ```
 
+We also provide with an **advanced version** of ASEN, which has been included in model.py. The advanced version of ASEN can achieve competitive performance(60.3% mAP) as ASEN while requiring less than 50 epochs. You can train it by
+
+```sh
+python asen.py --model ASENet_V2 --decay_rate 0.9 --step_size 3 --epochs 50
+```
+
 ## Testing
 
 As training terminates, two snapshots are saved for testing. One is the model that has the highest performance on validation set and the other is the one of the latest epoch. You can load any of them and test on the test set.
