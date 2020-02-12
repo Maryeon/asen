@@ -21,7 +21,7 @@ import torch.backends.cudnn as cudnn
 
 import resnet
 from metric import APScorer
-from model import ASENet, Tripletnet
+from model import get_model
 from image_loader import TripletImageLoader, ImageLoader, MetaLoader
 
 # Command Line Argument Parser
@@ -38,7 +38,7 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disable CUDA training')
-parser.add_argument('--log-interval', type=int, default=100, metavar='N',
+parser.add_argument('--log-interval', type=int, default=400, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
@@ -60,6 +60,12 @@ parser.add_argument('--data_path', default="data", type=str,
                     help='path to data directory')
 parser.add_argument('--dataset', default="FashionAI", type=str,
                     help='name of dataset')
+parser.add_argument('--model', default="ASENet", type=str,
+                    help='model to load')
+parser.add_argument('--step_size', type=int, default=1, metavar='N',
+                    help='learning rate decay step size')
+parser.add_argument('--decay_rate', type=float, default=0.985, metavar='N',
+                    help='learning rate decay rate')
 parser.set_defaults(test=False)
 parser.set_defaults(visdom=False)
 
@@ -303,17 +309,6 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch):
-
-    lr = args.lr * ((1 - 0.015) ** epoch)
-
-    if args.visdom:
-        plotter.plot('lr', 'learning rate', epoch, lr)
-
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-
 def accuracy(sim_a, sim_b):
     # triplet prediction acc
     margin = 0
@@ -385,11 +380,16 @@ def main():
 
     model = resnet.resnet50_feature()
     global smn_model
-    smn_model = ASENet(model, n_conditions=len(attributes), embedding_size=args.dim_embed)
+    smn_model = get_model(args.model)(model, n_attributes=len(attributes), embedding_size=args.dim_embed)
 
-    tnet = Tripletnet(smn_model)
+    tnet = get_model('Tripletnet')(smn_model)
     if args.cuda:
         tnet.cuda()
+
+    criterion = torch.nn.MarginRankingLoss(margin = args.margin)
+    parameters = filter(lambda p: p.requires_grad, tnet.parameters())
+    n_parameters = sum([p.data.nelement() for p in tnet.parameters()])
+    logger.info('  + Number of params: {}'.format(n_parameters))
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -397,21 +397,14 @@ def main():
             logger.info("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
-            best_mAP = checkpoint['best_prec']
+            mAP = checkpoint['prec']
             tnet.load_state_dict(checkpoint['state_dict'])
-            logger.info("=> loaded checkpoint '{}' (epoch {} mAP {})"
-                    .format(args.resume, checkpoint['epoch'], best_mAP))
+            logger.info("=> loaded checkpoint '{}' (epoch {} mAP on validation set {})"
+                    .format(args.resume, checkpoint['epoch'], mAP))
         else:
             logger.info("=> no checkpoint found at '{}'".format(args.resume))
 
     cudnn.benchmark = True
-
-    criterion = torch.nn.MarginRankingLoss(margin = args.margin)
-    parameters = filter(lambda p: p.requires_grad, tnet.parameters())
-    optimizer = optim.Adam(parameters, lr=args.lr)
-
-    n_parameters = sum([p.data.nelement() for p in tnet.parameters()])
-    logger.info('  + Number of params: {}'.format(n_parameters))
 
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -442,6 +435,9 @@ def main():
 
         test_mAP = test(test_candidate_loader, test_query_loader, smn_model)
         sys.exit()
+
+    optimizer = optim.Adam(parameters, lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.decay_rate, last_epoch=args.start_epoch if args.start_epoch>1 else -1)
 
     train_loader = torch.utils.data.DataLoader(
         TripletImageLoader(args.data_path, args.dataset, args.num_triplets,
@@ -481,8 +477,6 @@ def main():
     best_mAP = 0
     start = time.time()
     for epoch in range(args.start_epoch, args.epochs + 1):
-        # update learning rate
-        adjust_learning_rate(optimizer, epoch)
         # train for one epoch
         train(train_loader, tnet, criterion, optimizer, epoch)
         train_loader.dataset.refresh()
@@ -495,9 +489,11 @@ def main():
         save_checkpoint({
             'epoch': epoch,
             'state_dict': tnet.state_dict(),
-            'best_prec': best_mAP,
+            'prec': mAP,
         }, is_best)
 
+        # update learning rate
+        scheduler.step()
         for param in optimizer.param_groups:
             logging.info('lr:{}'.format(param['lr']))
             break
