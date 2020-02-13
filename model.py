@@ -51,7 +51,7 @@ class ASENet(nn.Module):
         self.sigmoid = nn.Sigmoid()
         
     def forward(self, x, task, norm=True):
-        x, _ = self.backbonenet(x)
+        x = self.backbonenet(x)
 
         img_embedding = self.conv1(x)
         img_embedding = self.tanh(img_embedding)
@@ -92,7 +92,7 @@ class ASENet(nn.Module):
         return x
 
     def get_heatmaps(self, x, task):
-        feature, _ = self.backbonenet(x)
+        feature = self.backbonenet(x)
 
         img_embedding = self.conv1(feature)
         img_embedding = self.tanh(img_embedding)
@@ -177,7 +177,6 @@ class ASENet_V2(nn.Module):
         x = x * mask
 
         x = self.feature_fc(x)
-        #x = self.relu(x)
 
         if norm:
             x = l2norm(x)
