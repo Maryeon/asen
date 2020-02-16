@@ -127,7 +127,6 @@ class ASENet_V2(nn.Module):
         self.attr_transform1 = nn.Linear(512, 512)
         self.conv1 = nn.Conv2d(1024, 512, kernel_size=1, stride=1)
         self.img_bn1 = nn.BatchNorm2d(512)
-        self.conv2 = nn.Conv2d(512, 1, kernel_size=1, stride=1)
 
         self.attr_transform2 = nn.Linear(512, 512)
         self.fc1 = nn.Linear(1536, 512)
@@ -155,8 +154,8 @@ class ASENet_V2(nn.Module):
 
         #attribute-aware spatial attention
         attmap = attr * img
-        attmap = self.conv2(attmap)
-        attmap = self.tanh(attmap)
+        attmap = torch.sum(attmap, dim=1, keepdim=True)
+        attmap = torch.div(attmap, 512 ** 0.5)
         attmap = attmap.view(attmap.size(0), attmap.size(1), -1)
         attmap = self.softmax(attmap)
         attmap = attmap.view(attmap.size(0), attmap.size(1), 14, 14)
@@ -198,8 +197,8 @@ class ASENet_V2(nn.Module):
 
         #attribute-aware spatial attention
         attmap = attr * img
-        attmap = self.conv2(attmap)
-        attmap = self.tanh(attmap)
+        attmap = torch.sum(attmap, dim=1, keepdim=True)
+        attmap = torch.div(attmap, 512 ** 0.5)
         attmap = attmap.view(attmap.size(0), attmap.size(1), -1)
         attmap = self.softmax(attmap)
         attmap = attmap.view(attmap.size(0), attmap.size(1), 14, 14)
