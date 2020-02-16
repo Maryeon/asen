@@ -25,7 +25,7 @@ class TripletGenerator(object):
         self.labels = []
         with open(labelfile, 'r') as f:
             for label in f:
-                self.labels.append([int(i) for i in label.strip().split(' ')])
+                self.labels.append([int(i) for i in label.strip().split()])
 
         self.category = meta['ATTRIBUTES']
         self.category_num = meta['ATTRIBUTES_NUM']
