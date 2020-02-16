@@ -16,7 +16,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import transforms
-from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 
 import resnet
@@ -84,8 +83,7 @@ def train(train_loader, tnet, criterion, optimizer, epoch):
     for batch_idx, (data1, data2, data3, c) in enumerate(train_loader):
         if args.cuda:
             data1, data2, data3, c = data1.cuda(), data2.cuda(), data3.cuda(), c.cuda()
-        data1, data2, data3, c = Variable(data1), Variable(data2), Variable(data3), Variable(c)
-
+  
         # compute similarity
         sim_a, sim_b = tnet(data1, data2, data3, c)
 
@@ -93,7 +91,6 @@ def train(train_loader, tnet, criterion, optimizer, epoch):
         target = torch.FloatTensor(sim_a.size()).fill_(-1)
         if args.cuda:
             target = target.cuda()
-        target = Variable(target)
         
         loss_triplet = criterion(sim_a, sim_b, target)
         loss = loss_triplet
@@ -139,13 +136,12 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
     for _, (img, c, gdtruth, _) in enumerate(test_candidate_loader):
         
         if args.cuda:
-            img, c, gdtruth = img.cuda(), c.cuda(), gdtruth.cuda()
-        img, c, gdtruth = Variable(img), Variable(c), Variable(gdtruth)
+            img, c = img.cuda(), c.cuda()
 
         masked_embedding = test_model(img, c)
         for i in range(masked_embedding.size(0)):
             cand_set[c[i].data.item()].append(masked_embedding[i].cpu().data.numpy())
-            c_gdtruth[c[i].data.item()].append(gdtruth[i].cpu().data.item())
+            c_gdtruth[c[i].data.item()].append(gdtruth[i])
 
     for attribute in attributes:
         cand_set[attribute] = np.array(cand_set[attribute])
@@ -156,13 +152,12 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
     q_gdtruth = [[] for _ in attributes]
     for _, (img, c, gdtruth, _) in enumerate(test_query_loader):
         if args.cuda:
-            img, c, gdtruth = img.cuda(), c.cuda(), gdtruth.cuda()
-        img, c, gdtruth = Variable(img), Variable(c), Variable(gdtruth)
+            img, c = img.cuda(), c.cuda()
 
         masked_embedding = test_model(img, c)
         for i in range(masked_embedding.size(0)):
             queries[c[i].data.item()].append(masked_embedding[i].cpu().data.numpy())
-            q_gdtruth[c[i].data.item()].append(gdtruth[i].cpu().data.item())
+            q_gdtruth[c[i].data.item()].append(gdtruth[i])
     for attribute in attributes:
         queries[attribute] = np.array(queries[attribute])
         q_gdtruth[attribute] = np.array(q_gdtruth[attribute])
