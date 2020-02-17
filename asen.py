@@ -391,7 +391,7 @@ def main():
         if os.path.isfile(args.resume):
             logger.info("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
-            args.start_epoch = checkpoint['epoch']
+            args.start_epoch = checkpoint['epoch'] + 1
             mAP = checkpoint['prec']
             tnet.load_state_dict(checkpoint['state_dict'])
             logger.info("=> loaded checkpoint '{}' (epoch {} mAP on validation set {})"
@@ -432,7 +432,7 @@ def main():
         sys.exit()
 
     optimizer = optim.Adam(parameters, lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.decay_rate, last_epoch=args.start_epoch if args.start_epoch>1 else -1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.decay_rate)
 
     train_loader = torch.utils.data.DataLoader(
         TripletImageLoader(args.data_path, args.dataset, args.num_triplets,
