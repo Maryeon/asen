@@ -370,11 +370,9 @@ def main():
     global attributes
     attributes = [i for i in range(len(meta.data['ATTRIBUTES']))]
 
-    model = resnet.resnet50_feature()
-    global smn_model
-    smn_model = get_model(args.model)(model, n_attributes=len(attributes), embedding_size=args.dim_embed)
-
-    tnet = get_model('Tripletnet')(smn_model)
+    backbone = resnet.resnet50_feature()
+    enet = get_model(args.model)(backbone, n_attributes=len(attributes), embedding_size=args.dim_embed)
+    tnet = get_model('Tripletnet')(enet)
     if args.cuda:
         tnet.cuda()
 
@@ -425,7 +423,7 @@ def main():
                         ])),
             batch_size=args.batch_size, shuffle=True, **kwargs)
 
-        test_mAP = test(test_candidate_loader, test_query_loader, smn_model)
+        test_mAP = test(test_candidate_loader, test_query_loader, enet)
         sys.exit()
 
     optimizer = optim.Adam(parameters, lr=args.lr)
@@ -473,7 +471,7 @@ def main():
         train(train_loader, tnet, criterion, optimizer, epoch)
         train_loader.dataset.refresh()
         # evaluate on validation set
-        mAP = test(val_candidate_loader, val_query_loader, smn_model, epoch)
+        mAP = test(val_candidate_loader, val_query_loader, enet, epoch)
 
         # remember best meanAP and save checkpoint
         is_best = mAP > best_mAP
