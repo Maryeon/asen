@@ -177,30 +177,27 @@ def test(test_candidate_loader, test_query_loader, test_model, epoch=-1):
     if args.visdom:
         samples = test_candidate_loader.dataset.sample()
         # raw images
-        imgs = []
+        raw_imgs = []
         # feed network
         x = []
         for sample in samples:
             img = cv2.imread(sample[0])
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-            origin_img = cv2.resize(img, (224,224), interpolation=cv2.INTER_CUBIC)
-            imgs.append(origin_img)
+            raw_imgs.append(cv2.resize(img, (224,224), interpolation=cv2.INTER_CUBIC))
 
-            input_img = Image.fromarray(img)
-            input_img = test_candidate_loader.dataset.transform(input_img)
-            x.append(input_img.numpy())
+            feed = Image.fromarray(img)
+            feed = test_candidate_loader.dataset.transform(feed)
+            x.append(feed)
 
         # corresponding attributes
-        tasks = [sample[1] for sample in samples]
-
-        tasks = np.array(tasks)
-        x = np.array(x)
-        c = torch.from_numpy(tasks)
-        x = torch.from_numpy(x)
+        c = [sample[1] for sample in samples]
+        c = torch.LongTensor(c)
+        x = torch.stack(x, dim=0)
         x, c = x.cuda(), c.cuda()
+
         heatmaps = test_model.get_heatmaps(x, c)
-        plotter.plot_attention(imgs, heatmaps.cpu().data.numpy(), tasks)
+        plotter.plot_attention(raw_imgs, heatmaps.cpu().data.numpy(), c)
 
         plotter.plot('mAP', 'valid', epoch, mAPs.avg)
 
