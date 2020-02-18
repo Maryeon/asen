@@ -377,7 +377,6 @@ def main():
         tnet.cuda()
 
     criterion = torch.nn.MarginRankingLoss(margin = args.margin)
-    parameters = filter(lambda p: p.requires_grad, tnet.parameters())
     n_parameters = sum([p.data.nelement() for p in tnet.parameters()])
     logger.info('  + Number of params: {}'.format(n_parameters))
 
@@ -426,6 +425,7 @@ def main():
         test_mAP = test(test_candidate_loader, test_query_loader, enet)
         sys.exit()
 
+    parameters = filter(lambda p: p.requires_grad, tnet.parameters())
     optimizer = optim.Adam(parameters, lr=args.lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.decay_rate)
 
