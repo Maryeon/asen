@@ -50,40 +50,19 @@ class ASENet(nn.Module):
         self.softmax = nn.Softmax(dim=2)
         self.sigmoid = nn.Sigmoid()
         
-    def forward(self, x, task, norm=True):
+    def forward(self, x, c, norm=True):
         x = self.backbonenet(x)
 
-        img_embedding = self.conv1(x)
-        img_embedding = self.tanh(img_embedding)
-
-        c = task.view(task.size(0), 1).cpu()
-        mask_fc_input = torch.zeros(c.size(0), self.n_attributes).scatter_(1, c, 1)
-        mask_fc_input = mask_fc_input.cuda()
-        mask = self.mask_fc1(mask_fc_input)
-        mask = self.tanh(mask)
-        mask = mask.view(mask.size(0), mask.size(1), 1, 1)
-        mask = mask.expand(mask.size(0), mask.size(1), 14, 14)
-
-        #spatial attention
-        attmap = mask * img_embedding
-        attmap = self.conv2(attmap)
-        attmap = self.tanh(attmap)
-        attmap = attmap.view(attmap.size(0), attmap.size(1), -1)
-        attmap = self.softmax(attmap)
-        attmap = attmap.view(attmap.size(0), attmap.size(1), 14, 14)
+        attmap = self.ASA(x, c)
 
         x = x * attmap
         x = x.view(x.size(0), x.size(1), x.size(2)*x.size(3))
         x = x.sum(dim=2)
 
-        #channel attention
-        mask = self.relu(self.mask_fc2(mask_fc_input))
-        mask = torch.cat((x, mask), dim=1)
-        mask = self.fc1(mask)
-        mask = self.relu(mask)
-        mask = self.fc2(mask)
-        mask = self.sigmoid(mask)
+        mask = self.ACA(x, c)
+
         x = x * mask
+
         x = self.feature_fc(x)
 
         if norm:
@@ -91,14 +70,13 @@ class ASENet(nn.Module):
 
         return x
 
-    def get_heatmaps(self, x, task):
-        feature = self.backbonenet(x)
-
-        img_embedding = self.conv1(feature)
+    def ASA(self, x, c):
+        # attribute-aware spatial attention
+        img_embedding = self.conv1(x)
         img_embedding = self.tanh(img_embedding)
 
-        task = task.view(task.size(0), 1).cpu()
-        mask_fc_input = torch.zeros(task.size(0), self.n_attributes).scatter_(1, task, 1)
+        c = c.view(c.size(0), 1).cpu()
+        mask_fc_input = torch.zeros(c.size(0), self.n_attributes).scatter_(1, c, 1)
         mask_fc_input = mask_fc_input.cuda()
         mask = self.mask_fc1(mask_fc_input)
         mask = self.tanh(mask)
@@ -111,7 +89,29 @@ class ASENet(nn.Module):
         attmap = attmap.view(attmap.size(0), attmap.size(1), -1)
         attmap = self.softmax(attmap)
         attmap = attmap.view(attmap.size(0), attmap.size(1), 14, 14)
+
+        return attmap
+
+    def ACA(self, x, c):
+        # attribute-aware channel attention
+        c = c.view(c.size(0), 1).cpu()
+        mask_fc_input = torch.zeros(c.size(0), self.n_attributes).scatter_(1, c, 1)
+        mask_fc_input = mask_fc_input.cuda()
+        mask = self.relu(self.mask_fc2(mask_fc_input))
+        mask = torch.cat((x, mask), dim=1)
+        mask = self.fc1(mask)
+        mask = self.relu(mask)
+        mask = self.fc2(mask)
+        mask = self.sigmoid(mask)
+
+        return mask
+
+    def get_heatmaps(self, x, c):
+        x = self.backbonenet(x)
+
+        attmap = self.ASA(x, c)
         attmap = attmap.squeeze()
+
         return attmap
 
 
@@ -142,37 +142,14 @@ class ASENet_V2(nn.Module):
     def forward(self, x, c, norm=True):
         x = self.backbonenet(x)
 
-        img = self.conv1(x)
-        img = self.img_bn1(img)
-        img = self.tanh(img)
-
-        attr = self.attr_embedding(c)
-        attr = self.attr_transform1(attr)
-        attr = self.tanh(attr)
-        attr = attr.view(attr.size(0), attr.size(1), 1, 1)
-        attr = attr.expand(attr.size(0), attr.size(1), 14, 14)
-
-        #attribute-aware spatial attention
-        attmap = attr * img
-        attmap = torch.sum(attmap, dim=1, keepdim=True)
-        attmap = torch.div(attmap, 512 ** 0.5)
-        attmap = attmap.view(attmap.size(0), attmap.size(1), -1)
-        attmap = self.softmax(attmap)
-        attmap = attmap.view(attmap.size(0), attmap.size(1), 14, 14)
+        attmap = self.ASA(x, c)
 
         x = x * attmap
         x = x.view(x.size(0), x.size(1), x.size(2)*x.size(3))
         x = x.sum(dim=2)
 
-        #channel attention
-        attr = self.attr_embedding(c)
-        attr = self.attr_transform2(attr)
-        attr = self.relu(attr)
-        img_attr = torch.cat((x, attr), dim=1)
-        mask = self.fc1(img_attr)
-        mask = self.relu(mask)
-        mask = self.fc2(mask)
-        mask = self.sigmoid(mask)
+        mask = self.ACA(x, c)
+
         x = x * mask
 
         x = self.feature_fc(x)
@@ -182,9 +159,8 @@ class ASENet_V2(nn.Module):
 
         return x
 
-    def get_heatmaps(self, x, c):
-        x = self.backbonenet(x)
-
+    def ASA(self, x, c):
+        # attribute-aware spatial attention
         img = self.conv1(x)
         img = self.img_bn1(img)
         img = self.tanh(img)
@@ -195,13 +171,32 @@ class ASENet_V2(nn.Module):
         attr = attr.view(attr.size(0), attr.size(1), 1, 1)
         attr = attr.expand(attr.size(0), attr.size(1), 14, 14)
 
-        #attribute-aware spatial attention
         attmap = attr * img
         attmap = torch.sum(attmap, dim=1, keepdim=True)
         attmap = torch.div(attmap, 512 ** 0.5)
         attmap = attmap.view(attmap.size(0), attmap.size(1), -1)
         attmap = self.softmax(attmap)
         attmap = attmap.view(attmap.size(0), attmap.size(1), 14, 14)
+
+        return attmap
+
+    def ACA(self, x, c):
+        # attribute-aware channel attention
+        attr = self.attr_embedding(c)
+        attr = self.attr_transform2(attr)
+        attr = self.relu(attr)
+        img_attr = torch.cat((x, attr), dim=1)
+        mask = self.fc1(img_attr)
+        mask = self.relu(mask)
+        mask = self.fc2(mask)
+        mask = self.sigmoid(mask)
+
+        return mask
+
+    def get_heatmaps(self, x, c):
+        x = self.backbonenet(x)
+
+        attmap = self.ASA(x, c)
 
         attmap = attmap.squeeze()
 
