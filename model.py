@@ -132,8 +132,6 @@ class ASENet_V2(nn.Module):
         self.fc1 = nn.Linear(1536, 512)
         self.fc2 = nn.Linear(512, 1024)
 
-        self.feature_fc = nn.Linear(1024, self.embedding_size)
-
         self.tanh = nn.Tanh()
         self.relu = nn.ReLU(inplace=True)
         self.softmax = nn.Softmax(dim=2)
@@ -151,8 +149,6 @@ class ASENet_V2(nn.Module):
         mask = self.ACA(x, c)
 
         x = x * mask
-
-        x = self.feature_fc(x)
 
         if norm:
             x = l2norm(x)
