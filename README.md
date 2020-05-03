@@ -31,7 +31,7 @@ conda deactivate
 We supply our dataset split and some descriptions of the datasets with a bunch of meta files. Download them by the following script.
 
 ```sh
-wget -c -P data/ http://www.maryeon.com/file/release/meta_data.tar.gz
+wget -c -P data/ http://www.maryeon.com/file/meta_data.tar.gz
 cd data/
 tar -zxvf meta_data.tar.gz
 ```
@@ -46,7 +46,7 @@ unzip fashionAI_attributes_train1.zip fashionAI_attributes_train2.zip -d {your_p
 
 #### DARN Dataset
 
-As some images’ URLs have been broken, only 214,619 images are obtained for our experiments. We provide with a series of [URLs](http://www.maryeon.com/file/release/darn_url.txt) for the images.
+As some images’ URLs have been broken, only 214,619 images are obtained for our experiments. We provide with a series of [URLs](http://www.maryeon.com/file/darn_url.txt) for the images.
 
 #### DeepFashion Dataset
 
