@@ -198,11 +198,64 @@ class ASENet_V2(nn.Module):
 
         return attmap
 
+    
+class ConditionalSimNet(nn.Module):
+    def __init__(self, embeddingnet, embedding_size, n_attributes, learnedmask=True, prein=False):
+        super(ConditionalSimNet, self).__init__()
+        self.learnedmask = learnedmask
+        self.embeddingnet = embeddingnet
+        self.embed_fc = nn.Linear(1024, embedding_size)
+        self.avgpool = nn.AvgPool2d(14)
+        # create the mask
+        if learnedmask:
+            if prein:
+                # define masks 
+                self.masks = torch.nn.Embedding(n_attributes, embedding_size)
+                # initialize masks
+                mask_array = np.zeros([n_attributes, embedding_size])
+                mask_array.fill(0.1)
+                mask_len = int(embedding_size / n_attributes)
+                for i in range(n_attributes):
+                    mask_array[i, i*mask_len:(i+1)*mask_len] = 1
+                # no gradients for the masks
+                self.masks.weight = torch.nn.Parameter(torch.Tensor(mask_array), requires_grad=True)
+            else:
+                # define masks with gradients
+                self.masks = torch.nn.Embedding(n_attributes, embedding_size)
+                # initialize weights
+                self.masks.weight.data.normal_(0.9, 0.7) # 0.1, 0.005
+        else:
+            # define masks 
+            self.masks = torch.nn.Embedding(n_attributes, embedding_size)
+            # initialize masks
+            mask_array = np.zeros([n_attributes, embedding_size])
+            mask_len = int(embedding_size / n_attributes)
+            for i in range(n_attributes):
+                mask_array[i, i*mask_len:(i+1)*mask_len] = 1
+            # no gradients for the masks
+            self.masks.weight = torch.nn.Parameter(torch.Tensor(mask_array), requires_grad=False)
+
+    def forward(self, x, c, norm=True):
+        embedded_x = self.embeddingnet(x)
+        embedded_x = self.avgpool(embedded_x)
+        embedded_x = embedded_x.view(embedded_x.size(0), -1)
+        embedded_x = self.embed_fc(embedded_x)
+        self.mask = self.masks(c)
+        if self.learnedmask:
+            self.mask = torch.nn.functional.relu(self.mask)
+        masked_embedding = embedded_x * self.mask
+
+        if norm:
+            masked_embedding = l2norm(masked_embedding)
+            
+        return masked_embedding
+    
 
 model_dict = {
     'Tripletnet': Tripletnet,
     'ASENet': ASENet,
-    'ASENet_V2': ASENet_V2
+    'ASENet_V2': ASENet_V2,
+    'ConditionalSimNet': ConditionalSimNet
 }
 def get_model(name):
     return model_dict[name]
