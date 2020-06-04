@@ -61,19 +61,19 @@ We utilize identical split provided by [Conditional SImilarity Network](https://
 All data prepared, you can simply train the model on FashionAI dataset(default)
 
 ```sh
-python asen.py --dataset FashionAI
+python main.py --dataset FashionAI
 ```
 
 there are also optional arguments for dataset, initial learning rate, batch size and so on. Check them by 
 
 ```sh
-python asen.py --help
+python main.py --help
 ```
 
 We also provide with an **advanced version** of ASEN, which has been included in model.py. The advanced version of ASEN can achieve the same performance as ASEN while requiring less than 50 epochs. You can train it by
 
 ```sh
-python asen.py --model ASENet_V2 --decay_rate 0.9 --step_size 3 --epochs 50
+python main.py --model ASENet_V2 --decay_rate 0.9 --step_size 3 --epochs 50
 ```
 
 ## Testing
@@ -81,7 +81,7 @@ python asen.py --model ASENet_V2 --decay_rate 0.9 --step_size 3 --epochs 50
 As training terminates, two snapshots are saved for testing. One is the model that has the highest performance on validation set and the other is the one of the latest epoch. You can load any of them and test on the test set.
 
 ```sh
-python asen.py --test [--dataset xx] --resume runs/{your_exp_name}/xx.pth.tar
+python main.py --test [--dataset xx] --resume runs/{your_exp_name}/xx.pth.tar
 ```
 
 ## Citing
