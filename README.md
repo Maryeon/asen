@@ -31,14 +31,14 @@ conda deactivate
 We supply our dataset split and some descriptions of the datasets with a bunch of meta files. Download them by the following script.
 
 ```sh
-wget -c -P data/ http://www.maryeon.com/file/meta_data.tar.gz
+wget -c -P data/ https://drive.google.com/file/d/1_Cyo-IkHYU977bneTXaMC_f63e3vLfSA/view?usp=sharing
 cd data/
 tar -zxvf meta_data.tar.gz
 ```
 
 #### FashionAI Dataset
 
-As the full FashionAI has not been publicly released, we utilize its early version for the [FashionAI Global Challenge 2018](https://tianchi.aliyun.com/markets/tianchi/FashionAI). You can first sign in and download the data. Once done, you should uncompress them into the `FashionAI` directory:
+As the full FashionAI has not been publicly released, we utilize its early version for the [FashionAI Global Challenge 2018](https://tianchi.aliyun.com/competition/entrance/231671/introduction?spm=5176.12281949.1003.9.493e3eafCXLQGm). You can first sign up and download the data. Once done, you should uncompress them into the `FashionAI` directory:
 
 ```sh
 unzip fashionAI_attributes_train1.zip fashionAI_attributes_train2.zip -d {your_project_path}/data/FashionAI
@@ -46,7 +46,7 @@ unzip fashionAI_attributes_train1.zip fashionAI_attributes_train2.zip -d {your_p
 
 #### DARN Dataset
 
-As some images’ URLs have been broken, only 214,619 images are obtained for our experiments. We provide with a series of [URLs](http://www.maryeon.com/file/darn_url.txt) for the images.
+As some images’ URLs have been broken, only 214,619 images are obtained for our experiments. We provide with a series of [URLs](https://drive.google.com/file/d/10jpHsFI2njzEGl7kdACXbvstz6tXyE0R/view?usp=sharing) for the images.
 
 #### DeepFashion Dataset
 
