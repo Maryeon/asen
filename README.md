@@ -24,6 +24,13 @@ pip install -r requirements.txt
 conda deactivate
 ```
 
+### Docker Env with [Nvidia-docker](https://github.com/NVIDIA/nvidia-docker)
+```bash
+docker build -t asen_img .
+docker run --rm --gpus all -v $(pwd)/:/asen -ti asen_img /bin/bash
+cd /asen; # inside container
+```
+
 ### Download Data
 
 #### Dataset Split
